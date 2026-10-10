@@ -1,0 +1,16 @@
+{
+  "name": "@claudie/core",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=25"
+  },
+  "scripts": {
+    "test": "node --test 'test/*.test.ts'",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.9",
+    "typescript": "7.0.2"
+  }
+}
