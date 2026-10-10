@@ -9,7 +9,7 @@ import (
 	"github.com/dop251/goja"
 )
 
-// core.js is core/src/daemon-entry.ts bundled by `pnpm build`: all the session logic lives there.
+// core.js is backend/core/src/daemon-entry.ts bundled by `pnpm build`: all the session logic lives there.
 //
 //go:embed core.js
 var coreJS string

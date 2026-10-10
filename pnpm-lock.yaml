@@ -18,7 +18,7 @@ importers:
         specifier: 21.2.3
         version: 21.2.3
 
-  core:
+  backend/core:
     devDependencies:
       '@types/node':
         specifier: 25.9.9

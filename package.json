@@ -10,7 +10,7 @@
     "format": "biome check --write .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "go:check": "cd daemon && gofmt -l . | (! grep .) && go vet ./... && go test ./... && go tool govulncheck ./...",
+    "go:check": "cd backend/daemon && gofmt -l src | (! grep .) && go vet ./... && go test ./... && go tool govulncheck ./...",
     "build": "pnpm -r build"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-// The daemon's side of the core, bundled into daemon/core.js and run by the Go daemon in goja.
+// The daemon's side of the core, bundled into backend/daemon/src/core.js and run by the Go daemon in goja.
 // Everything crosses the boundary as JSON strings, so the Go side needs no knowledge of the types.
 import { Sessions } from './sessions.ts';
 

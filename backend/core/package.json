@@ -8,7 +8,7 @@
   "scripts": {
     "test": "node --test 'test/*.test.ts'",
     "typecheck": "tsc",
-    "build": "esbuild src/daemon-entry.ts --bundle --format=iife --target=es2017 --outfile=../daemon/core.js --log-level=warning"
+    "build": "esbuild src/daemon-entry.ts --bundle --format=iife --target=es2017 --outfile=../daemon/src/core.js --log-level=warning"
   },
   "devDependencies": {
     "@types/node": "25.9.9",

@@ -1,0 +1,44 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:claudie}/macos",
+      "name": "Debug Claudie (macos)",
+      "target": "Claudie",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug Claudie (macos)"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:claudie}/macos",
+      "name": "Release Claudie (macos)",
+      "target": "Claudie",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release Claudie (macos)"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:claudie}/frontends/macos",
+      "name": "Debug Claudie (frontends/macos)",
+      "target": "Claudie",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug Claudie (frontends/macos)"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:claudie}/frontends/macos",
+      "name": "Release Claudie (frontends/macos)",
+      "target": "Claudie",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release Claudie (frontends/macos)"
+    }
+  ]
+}

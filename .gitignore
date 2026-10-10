@@ -1,5 +1,6 @@
 node_modules/
-daemon/bin/
 events.ndjson
-daemon/core.js
-daemon/daemon
+backend/daemon/bin/
+backend/daemon/src/core.js
+frontends/macos/.build/
+frontends/macos/.swiftpm/
