@@ -2,53 +2,57 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"net/http"
+	"log/slog"
+	"net"
 	"os"
-	"strconv"
+	"os/signal"
+	"syscall"
+
+	"claudie/daemon/internal/config"
+	"claudie/daemon/internal/core"
+	"claudie/daemon/internal/eventlog"
+	"claudie/daemon/internal/server"
+	"claudie/daemon/internal/store"
 )
 
-const defaultPort = 47321
-
 func main() {
-	port, err := portFrom(os.Getenv("CLAUDIE_PORT"))
-	if err != nil {
-		fail(err)
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
+	if err := run(); err != nil {
+		slog.Error("claudie-daemon failed", "err", err)
+		os.Exit(2)
 	}
-	c, err := newCore()
+}
+
+// run wires the daemon up and serves until SIGINT or SIGTERM.
+func run() error {
+	cfg, err := config.Load(os.Getenv)
 	if err != nil {
-		fail(err)
+		return err
+	}
+	c, err := core.New()
+	if err != nil {
+		return err
 	}
 
-	var log *eventLog
-	// CLAUDIE_EVENT_LOG: append every event to this file, to replay real sessions in tests.
-	// It grows without bound; turn it on only while recording.
-	if path := os.Getenv("CLAUDIE_EVENT_LOG"); path != "" {
-		f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
-		if err != nil {
-			fail(err)
+	opts := server.Options{Engine: c, Hosts: cfg.Hosts()}
+	if cfg.EventLogPath != "" {
+		if opts.EventLog, err = eventlog.Open(cfg.EventLogPath); err != nil {
+			return err
 		}
-		log = &eventLog{out: f}
+		defer opts.EventLog.Close()
 	}
+	files := store.Open(c)
+	opts.Saver, opts.SettingsPath = files.Saver, files.SettingsPath
 
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	fmt.Fprintln(os.Stderr, "claudie-daemon: listening on", addr)
-	fail(http.ListenAndServe(addr, newServer(c, log, port).handler()))
-}
-
-func fail(err error) {
-	fmt.Fprintln(os.Stderr, "claudie-daemon:", err)
-	os.Exit(2)
-}
-
-// portFrom reads the port from CLAUDIE_PORT's value; empty means the default.
-func portFrom(s string) (int, error) {
-	if s == "" {
-		return defaultPort, nil
+	ln, err := net.Listen("tcp", cfg.Addr())
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
 	}
-	port, err := strconv.Atoi(s)
-	if err != nil || port < 1 || port > 65535 {
-		return 0, fmt.Errorf("bad CLAUDIE_PORT %q", s)
-	}
-	return port, nil
+	slog.Info("listening", "addr", ln.Addr().String())
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return server.New(opts).Serve(ctx, ln)
 }

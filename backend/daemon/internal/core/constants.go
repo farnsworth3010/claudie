@@ -1,0 +1,9 @@
+package core
+
+// apiNames are the functions core.js must export on its claudie object.
+var apiNames = []string{
+	"hook", "transcript", "tick", "transcripts", "snapshot",
+	"save", "restore", "settings", "loadSettings", "updateSettings",
+}
+
+const globalName = "claudie"

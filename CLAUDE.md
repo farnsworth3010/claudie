@@ -18,8 +18,9 @@ Claude Code ─http hooks──────────────────�
             ─SessionStart: claudie-session-start.sh (curl + pid) ─┘   127.0.0.1:47321
 ```
 - Claude Code posts every event to the daemon with `http` hooks; only SessionStart, which can't be an http hook, goes through a script, which also tells the daemon the session's pid. The script will start the daemon in the background when nothing answers on the port, so installing the plugin is the whole server setup.
-- Denied permissions and Esc send no hook at all; the daemon learns them from the session's transcript.
-- The daemon holds the only truth about sessions and streams full snapshots `{now, sessions}`; the Mac app only draws them.
+- Denied permissions and Esc send no hook at all; the daemon learns them, and how full the context is, by tailing the session's transcript.
+- The daemon holds the only truth about sessions and streams full snapshots `{now, sessions, settings}`. It checks every few seconds that each session's process still runs, keeps the sessions in `$XDG_STATE_HOME/claudie/sessions.json` across restarts and the overlay settings in `$XDG_CONFIG_HOME/claudie/settings.json`.
+- The Mac app runs the scene (`backend/core/src/scene`) in JavaScriptCore: it feeds it snapshots, screens and the mouse, and draws the sprites it hands back.
 
 | Language | Where | Role |
 |---|---|---|
@@ -37,10 +38,11 @@ Parts talk JSON: hook → daemon (the Claude Code event), daemon → app (snapsh
 
 ## Layout
 Source code lives in each part's `src/`.
-- `backend/core/`: TypeScript package (`src/`, `test/`). `pnpm build` bundles `src/daemon-entry.ts` into `backend/daemon/src/core.js` (gitignored).
-- `backend/daemon/`: Go module `claudie/daemon`, package `main` in `src/` with its `_test.go` files (Go keeps tests next to the code); `bin/` holds built binaries (gitignored).
+- `backend/core/`: TypeScript package. `src/` by area: `session/` (the state of a session: reducer, transcript, aging, the session list), `settings/`, `scene/` (everything drawn: art, clips, drawing, the director, the stage), `shared/` (small helpers), and `entries/`, the two bundle entry points. In each area, types, constants and helpers live in their own files (`types.ts`, `constants.ts` or `constants/`). Tests are in `test/`, mirroring `src/`. `pnpm build` bundles `src/entries/daemon.ts` into `backend/daemon/internal/core/core.js` and `src/entries/app.ts` into `frontends/macos/src/Resources/scene.js` (both gitignored).
+- `backend/daemon/`: Go module `claudie/daemon`. `src/main.go` is a thin `package main` that wires the packages in `internal/` (`config`, `core` the goja bridge, `server` HTTP and SSE, `hub` snapshot fan-out, `watch` timers and the transcript tailer, `store` files, `proc` process checks, `eventlog`); an interface lives in the package that uses it. All tests are in `test/`, one folder per package, as black-box tests of its exported API, so there are no `_test.go` files next to the code. `bin/` holds built binaries (gitignored).
 - `backend/plugin/`: Claude Code hooks.
-- `frontends/macos/`: Swift package, code in `src/`.
+- `frontends/macos/`: Swift package, code in `src/` by layer: `App/` (entry point, wiring), `Daemon/` (SSE client, HTTP), `Scene/` (the JavaScriptCore engine, its models, coordinates), `Overlay/` (the panel, drawing, input), `Support/` (constants, logging). It needs `scene.js`, so run `pnpm build` before `swift run`.
+- `tools/demo.sh`: made-up sessions in every state, sent to a running daemon; Ctrl+C ends them.
 - `.githooks/commit-msg`: runs commitlint; `pnpm install` points `core.hooksPath` at `.githooks`.
 
 ## Commands
@@ -53,7 +55,7 @@ Package manager: pnpm (workspace root plus `backend/core`). Node 25 and Go are n
 | `pnpm lint` / `pnpm format` | Biome: check / fix formatting and lint in TS, JS and JSON |
 | `pnpm typecheck` | `tsc` over `backend/core/` (checks only, emits nothing) |
 | `pnpm test` | `node --test` in `backend/core/` |
-| `pnpm build` | Bundle the core for the daemon |
+| `pnpm build` | Bundle the core for the daemon and the scene for the Mac app |
 | `pnpm go:check` | `gofmt`, `go vet`, `go test` and `govulncheck` in `backend/daemon/` |
 | `swift run` (in `frontends/macos/`, on a Mac) | Build and start the overlay |
 
