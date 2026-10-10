@@ -5,12 +5,13 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm go:check",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm go:check",
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "go:check": "cd daemon && gofmt -l . | (! grep .) && go vet ./... && go test ./..."
+    "go:check": "cd daemon && gofmt -l . | (! grep .) && go vet ./... && go test ./... && go tool govulncheck ./...",
+    "build": "pnpm -r build"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

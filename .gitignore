@@ -1,3 +1,5 @@
 node_modules/
 daemon/bin/
 events.ndjson
+daemon/core.js
+daemon/daemon

@@ -3,11 +3,9 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 )
 
 const defaultPort = 47321
@@ -17,22 +15,25 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
+	c, err := newCore()
+	if err != nil {
+		fail(err)
+	}
 
-	log := &eventLog{out: []io.Writer{os.Stdout}, now: time.Now}
-	// CLAUDIE_EVENT_LOG: also append every event to this file, to replay real sessions in tests.
+	var log *eventLog
+	// CLAUDIE_EVENT_LOG: append every event to this file, to replay real sessions in tests.
+	// It grows without bound; turn it on only while recording.
 	if path := os.Getenv("CLAUDIE_EVENT_LOG"); path != "" {
 		f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
 		if err != nil {
 			fail(err)
 		}
-		log.out = append(log.out, f)
+		log = &eventLog{out: f}
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/hook", log)
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	fmt.Fprintln(os.Stderr, "claudie-daemon: listening on", addr)
-	fail(http.ListenAndServe(addr, mux))
+	fail(http.ListenAndServe(addr, newServer(c, log, port).handler()))
 }
 
 func fail(err error) {
