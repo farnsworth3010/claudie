@@ -24,3 +24,30 @@ test('a patch with any unknown or mistyped field is refused whole', () => {
   assert.equal(settingsPatch([1]), undefined);
   assert.equal(settingsPatch(null), undefined);
 });
+
+test('the animation pace is kept within its range and patched like the other numbers', () => {
+  assert.equal(settingsFrom({}).pace, 1);
+  assert.equal(settingsFrom({ pace: 1.5 }).pace, 1.5);
+  assert.equal(settingsFrom({ pace: 10 }).pace, 1.5);
+  assert.equal(settingsFrom({ pace: 0.1 }).pace, 0.5);
+  assert.deepEqual(settingsPatch({ pace: 1.2 }), { pace: 1.2 });
+  assert.equal(settingsPatch({ pace: 'fast' }), undefined);
+});
+
+test('the mini size is a share of the main mascot, kept within its range', () => {
+  assert.equal(settingsFrom({}).miniSize, 0.5);
+  assert.equal(settingsFrom({ miniSize: 0.8 }).miniSize, 0.8);
+  assert.equal(settingsFrom({ miniSize: 3 }).miniSize, 1);
+  assert.equal(settingsFrom({ miniSize: 0 }).miniSize, 0.3);
+  assert.deepEqual(settingsPatch({ miniSize: 0.6 }), { miniSize: 0.6 });
+});
+
+test('idle timings are seconds within their ranges', () => {
+  assert.deepEqual(
+    [settingsFrom({}).sleepAfter, settingsFrom({}).neglectAfter, settingsFrom({}).patience],
+    [45, 300, 30],
+  );
+  assert.equal(settingsFrom({ sleepAfter: 1 }).sleepAfter, 10);
+  assert.equal(settingsFrom({ neglectAfter: 99_999 }).neglectAfter, 3600);
+  assert.deepEqual(settingsPatch({ patience: 12 }), { patience: 12 });
+});

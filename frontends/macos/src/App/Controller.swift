@@ -17,7 +17,11 @@ final class Controller: NSObject, NSApplicationDelegate {
     }
     let engine = Engine(script: script, anchor: UserDefaults.standard.string(forKey: Config.anchorDefaultsKey))
     chirp = NSSound(data: engine.chirp())
-    let overlay = Overlay(engine: engine) { [weak self] action in self?.perform(action) }
+    let overlay = Overlay(
+      engine: engine,
+      perform: { [weak self] action in self?.perform(action) },
+      openSettings: { [weak self] in self?.openSettings() }
+    )
     let stream = EventStream(url: daemon.eventsURL) { json in
       // EventStream calls back on the main queue, which is where the main actor runs.
       MainActor.assumeIsolated {
@@ -28,6 +32,11 @@ final class Controller: NSObject, NSApplicationDelegate {
     stream.start()
     self.overlay = overlay
     self.stream = stream
+  }
+
+  // The daemon serves the settings page; the browser opens it.
+  private func openSettings() {
+    NSWorkspace.shared.open(daemon.pageURL)
   }
 
   private func perform(_ action: Action) {

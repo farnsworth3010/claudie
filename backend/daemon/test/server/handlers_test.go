@@ -99,3 +99,16 @@ func TestSettingsRejectBadPatches(t *testing.T) {
 		}
 	}
 }
+
+func TestAnEventSentTwiceCountsOnce(t *testing.T) {
+	e := start(t)
+	body := `{"hook_event_name":"UserPromptSubmit","session_id":"s1","cwd":"/p/demo"}`
+	for range 2 {
+		if code := postHook(t, e, body, ""); code != http.StatusNoContent {
+			t.Fatalf("status %d, want 204", code)
+		}
+	}
+	if lines := strings.Count(e.log.String(), "\n"); lines != 1 {
+		t.Errorf("event log has %d lines, want 1: the copy is dropped before anything else", lines)
+	}
+}

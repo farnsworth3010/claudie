@@ -1,0 +1,36 @@
+# A tag vX.Y.Z publishes a GitHub release with the daemon for every platform; the plugin's
+# SessionStart hook downloads the one for its version from there.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/daemon/go.mod
+          cache-dependency-path: backend/daemon/go.sum
+      - name: The tag matches the plugin's version
+        run: |
+          version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' backend/plugin/.claude-plugin/plugin.json)
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME, plugin.json says $version"; exit 1; }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: tools/build-daemons.sh
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" backend/daemon/bin/release/* --title "$GITHUB_REF_NAME" --generate-notes

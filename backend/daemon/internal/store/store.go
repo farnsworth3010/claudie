@@ -30,6 +30,11 @@ func Open(p Persistable) Files {
 	return files
 }
 
+// LogPath is where the daemon writes its log when it runs in the background.
+func LogPath() (string, error) {
+	return xdgFile(envStateHome, stateHomeFallback, logFileName)
+}
+
 // loadSessions gives r the sessions of the last run.
 func loadSessions(r interface{ Restore(string) error }, path string) error {
 	data, ok, err := readJSON(path)

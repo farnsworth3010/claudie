@@ -1,0 +1,8 @@
+@for (section of sections; track section.title) {
+  <h2>{{ section.title }}</h2>
+  <section class="panel grid">
+    @for (tile of section.tiles; track tile.caption) {
+      <app-gallery-tile [spec]="tile" />
+    }
+  </section>
+}

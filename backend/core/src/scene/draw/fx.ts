@@ -1,4 +1,4 @@
-import { BUBBLES, CHAT, CROSS, HEART, IMPACT, PLUS, ZED, ZED_SPOTS } from '../art/pictures.ts';
+import { BUBBLES, CHAT, HEART, IMPACT, PLUS, ZED, ZED_SPOTS } from '../art/pictures.ts';
 import { GRID_W, OX, OY } from '../constants/grid.ts';
 import { PAL } from '../constants/look.ts';
 import type { Bubble, Pose, Setter } from '../types.ts';
@@ -28,8 +28,6 @@ export function paintFx(grid: Uint8Array, set: Setter, pose: Pose, dy: number): 
   } else if (fx === 'chat1' || fx === 'chat2' || fx === 'chat3') {
     stamp(grid, CHAT(Number(fx[4])), 11, 5);
     grid[10 * GRID_W + 12] = INK; // bubble tail
-  } else if (fx === 'cross') {
-    stamp(grid, CROSS, 14, 8);
   } else if (fx === 'z1' || fx === 'z2' || fx === 'z3') {
     for (const [x, y] of ZED_SPOTS.slice(0, Number(fx[1]))) stamp(grid, ZED, x, y);
   }

@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { clipDuration } from '../../src/scene/clips/clips.ts';
-import { CHAT_EVERY_MS, NEGLECT, PATIENCE_MS } from '../../src/scene/constants/director.ts';
+import { CHAT_EVERY_MS, NEGLECT, PATIENCE_MS, TOOL_HOLD_MS } from '../../src/scene/constants/director.ts';
 import { AGENT_LEAVE_MS, HANDOVER_AT, WALK_MS } from '../../src/scene/constants/timing.ts';
 import {
   agentCue,
   agentHasLeft,
   bumpClip,
   director,
+  holdTool,
   react,
   receiving,
   socialCues,
@@ -48,8 +49,8 @@ test('every mood opens its idle period with its own clip', () => {
   assert.deepEqual((['done', 'error', 'interrupted', 'denied', 'none'] as const).map(opening), [
     'celebrate',
     'sad',
-    'startled',
-    'refused',
+    'puzzled',
+    'puzzled',
     'stand',
   ]);
 });
@@ -195,4 +196,51 @@ test('idle neighbours chat now and then: left opens, right replies mirrored', ()
   assert.ok(none(idle('z', { since: at - 120_000 })));
   assert.ok(none(idle('g', { agents: [agent()] })));
   assert.ok(none(idle('n', { since: at + 100 })));
+});
+
+test('a quick tool keeps its clip up a moment over thinking, but not over what matters more', () => {
+  const working = { clip: 'search', startedAt: 1_000 } as const;
+  let { hold } = holdTool(working, undefined, 1_000);
+  const thinking = { clip: 'work', startedAt: 1_050 } as const;
+  assert.deepEqual(holdTool(thinking, hold, 1_200).cue, working, 'still searching just after the Read');
+  assert.deepEqual(holdTool(thinking, hold, 1_000 + TOOL_HOLD_MS).cue, thinking, 'thinking once the hold is over');
+  const alert = { clip: 'alert', startedAt: 1_100 } as const;
+  assert.deepEqual(holdTool(alert, hold, 1_200).cue, alert, 'a dialog shows at once');
+  // A second Read soon after carries the lens sweep on instead of starting it over.
+  ({ hold } = holdTool({ clip: 'search', startedAt: 1_400 }, hold, 1_400));
+  assert.equal(holdTool({ clip: 'search', startedAt: 1_400 }, hold, 1_500).cue.startedAt, 1_000);
+  assert.deepEqual(holdTool(thinking, hold, 1_400 + TOOL_HOLD_MS - 1).cue.clip, 'search', 'held from the latest');
+});
+
+test('at another pace the clips play faster or slower, and so do the windows timed by them', () => {
+  assert.equal(clipDuration('celebrate', 2), clipDuration('celebrate') / 2);
+  const done = session({ mood: 'done' });
+  const halfway = done.since + clipDuration('celebrate') * 0.75;
+  assert.equal(director(done, halfway).clip, 'celebrate');
+  assert.equal(director(done, halfway, { pace: 2 }).clip, 'stand', 'twice as fast, it is over already');
+});
+
+test('with stroll on, an idle mascot paces about instead of sleeping, gathering cobwebs or turning to bones', () => {
+  const idle = session();
+  const at = (minutes: number) => director(idle, idle.since + minutes * 60_000, { stroll: true }).clip;
+  assert.deepEqual([0.5, 2, 6, 20].map(at), ['stroll', 'stroll', 'stroll', 'stroll']);
+  const done = session({ mood: 'done' });
+  assert.equal(director(done, done.since + 100, { stroll: true }).clip, 'celebrate', 'a result still opens');
+});
+
+test('the idle timings move the yawn, the neglect and the antics, keeping their proportions', () => {
+  const idle = session();
+  const at = (s: number, behaviour = {}) => director(idle, idle.since + s * 1000, behaviour).clip;
+  const quick = { sleepAfter: 20, neglectAfter: 60, patience: 10 };
+  assert.equal(at(19, quick), 'stand');
+  assert.equal(at(20.5, quick), 'yawn');
+  assert.equal(at(45, quick), 'sleep');
+  assert.equal(at(7, quick), 'lookAround', 'a third of the way to sleep');
+  assert.equal(at(61, quick), 'cobweb');
+  assert.equal(at((60 * 17) / 5 + 1, quick), 'skeleton', 'the bones in proportion');
+  assert.equal(at(46), 'yawn', 'left alone, the built-in timings');
+  const asking = session({ activity: 'asking', tool: 'AskUserQuestion' });
+  assert.equal(director(asking, asking.since + 11_000, quick).bubble, 'question');
+  assert.notEqual(director(asking, asking.since + 11_000, quick).clip, 'ask', 'antics after 10 s');
+  assert.equal(director(asking, asking.since + 11_000).clip, 'ask', 'not yet with the built-in 30 s');
 });

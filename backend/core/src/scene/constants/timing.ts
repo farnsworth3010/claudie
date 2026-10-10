@@ -8,5 +8,4 @@ export const FADE_MS = 500;
 
 export const SWEAT_MS = 2400; // one lap of the sweat drop, then it pauses
 export const SWEAT_STEP_MS = 300;
-export const SHIVER_MS = 120;
 export const SPIN_MS = 70; // per propeller frame

@@ -9,19 +9,7 @@ export type Side = 'left' | 'right' | 'top' | 'bottom';
 
 export type Bubble = 'bang' | 'question';
 
-export type Fx =
-  | 'bang'
-  | 'question'
-  | 'z1'
-  | 'z2'
-  | 'z3'
-  | 'heart1'
-  | 'heart2'
-  | 'stars'
-  | 'chat1'
-  | 'chat2'
-  | 'chat3'
-  | 'cross';
+export type Fx = 'bang' | 'question' | 'z1' | 'z2' | 'z3' | 'heart1' | 'heart2' | 'stars' | 'chat1' | 'chat2' | 'chat3';
 
 export type HammerPhase = 'up' | 'hit' | 'rest';
 
@@ -81,11 +69,11 @@ export type Clip =
   | 'stand'
   | 'celebrate'
   | 'sad'
-  | 'startled'
-  | 'refused'
+  | 'puzzled'
   | 'lookAround'
   | 'yawn'
   | 'sleep'
+  | 'stroll'
   | 'work'
   | 'alert'
   | 'ask'
@@ -166,6 +154,7 @@ export interface FrameMods {
   readonly gaze?: Gaze;
   readonly bubble?: Bubble; // keeps a pending dialog's bubble up over any clip
   readonly mirror?: boolean;
+  readonly pace?: number; // how fast the clip plays; walking in or off keeps real time
 }
 
 // What a frame is drawn with, once the clip's time has been turned into phases.
@@ -249,7 +238,9 @@ export interface Reaction {
 }
 
 // The settings that change what a mascot plays; anything left out stays on.
-export type Behaviour = Partial<Pick<Settings, 'antics' | 'neglect'>>;
+export type Behaviour = Partial<
+  Pick<Settings, 'antics' | 'neglect' | 'pace' | 'stroll' | 'sleepAfter' | 'neglectAfter' | 'patience'>
+>;
 
 // --- Geometry
 
@@ -333,6 +324,9 @@ export interface View {
   tooltip?: { text: string; x: number; y: number }; // x: centre, y: bottom edge
   opacity: number;
   overFullscreen: boolean;
+  clickThrough: boolean; // the app takes the mouse over a Clawd only while ⌥ Option is held
+  overDock: boolean; // the app counts the Dock's area as room for the Clawds
+  overMenuBar: boolean; // and the menu bar's
   fast: boolean; // something moves: tick on the display's refresh instead of the slow timer
 }
 
@@ -355,7 +349,8 @@ export interface CrewDrawContext {
   readonly now: number;
   readonly pointer: Point | null; // null when the eyes shouldn't follow it
   readonly bounds: Rect | undefined;
-  readonly moving: boolean; // being dragged across the screen right now
+  readonly moving: boolean; // being dragged across the screen, or wandering, right now
+  readonly heading: 1 | -1; // which way a walk goes: forwards (rightwards when upright) or back
   readonly social: Cue | undefined; // a chat with a neighbour, overriding the director's cue
   readonly behaviour: Behaviour;
 }
@@ -368,8 +363,8 @@ export interface Box extends Point {
 export interface Drag {
   readonly x: number;
   readonly y: number;
-  readonly boxX: number;
-  readonly boxY: number;
+  boxX: number; // where the upright box was when the drag began
+  boxY: number;
   moved: boolean;
 }
 
@@ -381,9 +376,33 @@ export interface Move {
   wantY: number;
   screen: Screen;
   walls: Side[];
+  pushing: Side[]; // the edges the pointer drags the box past right now
   released: boolean;
+  vx: number; // points per ms, while dragged and in flight
+  vy: number;
+  flying: boolean; // let go of with inertia or gravity on: physics moves it, not the pointer
   at?: number;
   walkedAt?: number;
+}
+
+// Wandering about the screen's edges: how far along the track, where to, and when to set off again.
+export interface Roam {
+  spot: { readonly side: number; readonly along: number }; // see crawl.ts
+  remaining: number | null; // points left of the walk, null while resting
+  heading: 1 | -1;
+  speed: number; // points per ms, picked per walk
+  restUntil: number;
+  calm: boolean; // last tick, every crew could walk along
+  free?: { x: number; y: number }; // roaming anywhere: where the upright box is, unrounded
+  goal?: Point; // roaming anywhere: where this walk goes
+  approach?: { x: number; y: number }; // drifting from mid-air to the nearest edge, upright, before it can crawl
+}
+
+// A tool clip kept on screen a moment after a quick tool finished, so it doesn't just flash.
+export interface ToolHold {
+  readonly clip: Clip;
+  readonly startedAt: number;
+  readonly until: number;
 }
 
 export interface Click extends Point {

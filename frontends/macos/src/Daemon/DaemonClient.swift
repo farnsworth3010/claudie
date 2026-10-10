@@ -2,6 +2,7 @@ import Foundation
 
 // Where the daemon listens and what the app sends it.
 struct DaemonClient {
+  let pageURL: URL  // the settings page
   let eventsURL: URL
   private let settingsURL: URL
 
@@ -10,6 +11,7 @@ struct DaemonClient {
     guard let base = URL(string: "http://127.0.0.1:\(port)") else {
       fatalError("bad \(Config.portEnvironmentVariable) \(port)")
     }
+    pageURL = base
     eventsURL = base.appendingPathComponent("events")
     settingsURL = base.appendingPathComponent("settings")
   }

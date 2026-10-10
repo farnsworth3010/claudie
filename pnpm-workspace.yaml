@@ -1,6 +1,11 @@
 packages:
   - backend/core
+  - frontends/web
 
-# esbuild's install script only checks its platform binary.
+# esbuild's install script only checks its platform binary; Angular's file watcher and build cache
+# ship prebuilt binaries, so theirs aren't needed.
 allowBuilds:
+  '@parcel/watcher': false
   esbuild: true
+  lmdb: false
+  msgpackr-extract: false

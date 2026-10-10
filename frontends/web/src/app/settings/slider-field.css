@@ -1,0 +1,11 @@
+label {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr) 7.5em;
+  gap: 10px;
+  align-items: center;
+}
+
+output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

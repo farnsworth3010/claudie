@@ -12,6 +12,7 @@ const (
 	envStateHome       = "XDG_STATE_HOME"
 	stateHomeFallback  = ".local/state"
 	sessionsFileName   = "sessions.json"
+	logFileName        = "daemon.log"
 	envConfigHome      = "XDG_CONFIG_HOME"
 	configHomeFallback = ".config"
 	settingsFileName   = "settings.json"

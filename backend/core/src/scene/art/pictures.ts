@@ -32,8 +32,6 @@ export const ZED_SPOTS = [
   [12, 0],
 ] as const;
 export const HEART: readonly string[] = ['.rr.rr.', 'rrrrrrr', 'rrrrrrr', '.rrrrr.', '..rrr..', '...r...'];
-// A small red cross by the head: a denied request.
-export const CROSS: readonly string[] = ['r.r', '.r.', 'r.r'];
 // A speech bubble with one to three dots, drawn over the right shoulder; its tail points at the speaker.
 export const CHAT = (dots: number): readonly string[] => [
   '.ooooooo.',

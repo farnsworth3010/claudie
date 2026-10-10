@@ -5,6 +5,9 @@
   "engines": {
     "node": ">=25"
   },
+  "exports": {
+    "./*": "./src/*"
+  },
   "scripts": {
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc",

@@ -11,9 +11,11 @@ import (
 	"net/http"
 	"time"
 
+	"claudie/daemon/internal/dedup"
 	"claudie/daemon/internal/hub"
 	"claudie/daemon/internal/proc"
 	"claudie/daemon/internal/watch"
+	"claudie/daemon/internal/web"
 )
 
 // New returns a server of the sessions in o.Engine.
@@ -24,6 +26,9 @@ func New(o Options) *Server {
 		hosts:           o.Hosts,
 		saver:           o.Saver,
 		settingsPath:    o.SettingsPath,
+		version:         o.Version,
+		quit:            o.Quit,
+		repeats:         dedup.New(repeatWindow),
 		now:             time.Now,
 		alive:           proc.Alive,
 		livenessEvery:   cmp.Or(o.LivenessEvery, watch.LivenessEvery),
@@ -48,6 +53,9 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("GET /events", s.events)
 	mux.HandleFunc("GET /settings", s.getSettings)
 	mux.HandleFunc("POST /settings", s.postSettings)
+	mux.HandleFunc("GET /version", s.getVersion)
+	mux.HandleFunc("POST /quit", s.postQuit)
+	mux.Handle("GET /", web.Handler()) // the API's own routes are more specific and win
 	return s.guard(mux)
 }
 

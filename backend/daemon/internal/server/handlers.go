@@ -17,6 +17,10 @@ func (s *Server) hook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pid, _ := strconv.Atoi(r.Header.Get(pidHeader)) // absent or malformed: the pid is unknown
+	if s.repeats.Repeat(body, pid, s.now()) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	line, err := json.Marshal(eventlog.Record{Received: s.now().UnixMilli(), Pid: pid, Event: body})
 	if err != nil {
 		slog.Error("encode event", "err", err)
@@ -96,4 +100,25 @@ func (s *Server) postSettings(w http.ResponseWriter, r *http.Request) {
 		s.changed()
 	}
 	writeJSON(w, after)
+}
+
+// getVersion answers with the daemon's version.
+func (s *Server) getVersion(w http.ResponseWriter, _ *http.Request) {
+	body, err := json.Marshal(map[string]string{"version": s.version})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, string(body))
+}
+
+// postQuit stops the daemon once the answer is sent.
+func (s *Server) postQuit(w http.ResponseWriter, _ *http.Request) {
+	if s.quit == nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	slog.Info("asked to quit")
+	go s.quit()
 }

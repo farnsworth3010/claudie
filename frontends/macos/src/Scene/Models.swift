@@ -7,6 +7,9 @@ struct SceneView: Decodable {
   let tooltip: Tooltip?
   let opacity: Double
   let overFullscreen: Bool
+  let clickThrough: Bool
+  let overDock: Bool
+  let overMenuBar: Bool
   let fast: Bool
 }
 

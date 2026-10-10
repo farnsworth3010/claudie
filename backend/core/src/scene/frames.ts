@@ -4,8 +4,8 @@ import { CLIPS } from './clips/clips.ts';
 import { SCENES } from './clips/fidgets.ts';
 import { durationOf } from './clips/steps.ts';
 import { GRID_H, GRID_W, SOLID } from './constants/grid.ts';
-import { PAL, SICK_LEVEL } from './constants/look.ts';
-import { AGENT_LEAVE_MS, FADE_MS, SHIVER_MS, SPIN_MS, SWEAT_MS, SWEAT_STEP_MS, WALK_MS } from './constants/timing.ts';
+import { PAL } from './constants/look.ts';
+import { AGENT_LEAVE_MS, FADE_MS, SPIN_MS, SWEAT_MS, SWEAT_STEP_MS, WALK_MS } from './constants/timing.ts';
 import { draw } from './draw/draw.ts';
 import type { Clip, DrawnFrame, FidgetScene, Frame, FrameMods, Gaze, Step } from './types.ts';
 
@@ -80,11 +80,12 @@ function opacityOf(clip: Clip, walk: number, elapsed: number): number {
 }
 
 function play(clip: Clip, steps: readonly Step[], loop: boolean, elapsed: number, mods: FrameMods): Frame {
-  const step = stepAt(steps, loop, elapsed);
-  const drawn = drawnFrame(step, mods, elapsed);
+  // A handover is timed to the mini's walk across the screen, so it keeps real time.
+  const played = clip === 'deliver' ? elapsed : elapsed * (mods.pace ?? 1);
+  const step = stepAt(steps, loop, played);
+  const drawn = drawnFrame(step, mods, played);
   const walk = clamp(elapsed / WALK_MS, UNIT);
-  let dx = slideOf(clip, walk) + (step.pose.dx ?? 0) * (mods.mirror ? -1 : 1);
-  if ((mods.sick ?? 0) >= SICK_LEVEL.veryIll && Math.floor(elapsed / SHIVER_MS) % 2) dx += 1;
+  const dx = slideOf(clip, walk) + (step.pose.dx ?? 0) * (mods.mirror ? -1 : 1);
   return {
     w: GRID_W,
     h: GRID_H,

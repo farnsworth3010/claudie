@@ -1,0 +1,21 @@
+<header>
+  <h1>Claudie</h1>
+  <p class="status" role="status" [attr.data-ok]="connected()">{{ status() }}</p>
+</header>
+
+<main>
+  <section class="panel overview">
+    <app-preview />
+    <app-settings-form />
+  </section>
+  <p class="hint">
+    Hover a Clawd to see its session, drag the group, click to poke, Ctrl + scroll to resize. Changes apply to every
+    overlay at once.
+  </p>
+
+  <h2>Try it</h2>
+  <app-simulator class="panel" />
+  <p class="hint">Made-up sessions go through the daemon like real ones, so they show on the Mac too.</p>
+
+  <app-gallery />
+</main>

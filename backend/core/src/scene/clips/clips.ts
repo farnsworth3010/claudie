@@ -34,30 +34,18 @@ export const CLIPS = {
     loop: false,
     steps: [s(300, { squash: 2 }), s(140, { squash: 2, eyes: 'closed' }), s(1800, { squash: 2 })],
   },
-  // The user pressed Esc: a flinch, a jolt with wide eyes, a stare, a blink, settling back.
-  startled: {
+  // The user pressed Esc or turned a request down: wide eyes darting about, a blink, a shrug under
+  // a question mark, back to standing. Claude can't tell why.
+  puzzled: {
     loop: false,
     steps: [
-      s(90, { squash: 1, eyes: 'closed' }),
-      s(80, { arms: 'up', dy: -1, eyes: 'wide' }),
-      s(110, { arms: 'up', dy: -3, eyes: 'wide' }),
-      s(80, { arms: 'up', dy: -1, eyes: 'wide' }),
-      s(600, { eyes: 'wide' }),
+      s(120, { eyes: 'wide' }),
+      s(220, { eyes: 'wide', eyeDx: -1 }),
+      s(220, { eyes: 'wide', eyeDx: 1 }),
       s(140, { eyes: 'closed' }),
-      s(300),
-      s(200, { squash: 1 }),
+      s(600, { arms: 'up', fx: 'question' }),
+      s(250, { fx: 'question' }),
       s(150),
-    ],
-  },
-  // The user denied a permission: a shake of the head with a red cross, a small slump, standing again.
-  refused: {
-    loop: false,
-    steps: [
-      ...repeat(6, (i) => s(110, { dx: i % 2 ? 1 : -1, eyeDx: i % 2 ? 1 : -1, fx: 'cross' })),
-      s(120, { squash: 1, eyes: 'closed', fx: 'cross' }),
-      s(200, { squash: 1, eyes: 'closed' }),
-      s(500, { squash: 1, eyes: 'closed' }),
-      s(300),
     ],
   },
   lookAround: {
@@ -79,6 +67,23 @@ export const CLIPS = {
       s(900, { eyes: 'closed', arms: 'up', dy: -1 }),
       s(700, { eyes: 'closed' }),
       s(800, { eyes: 'closed', squash: 2 }),
+    ],
+  },
+  // Idle with the stroll setting on, instead of sleep: slow steps two pixels to the right, a pause
+  // and a blink, four back to the left, a pause, back to the middle.
+  stroll: {
+    loop: true,
+    steps: [
+      ...repeat(4, (i) => s(450, { legs: i % 2 ? 2 : 1, dx: Math.ceil((i + 1) / 2) })),
+      s(1_400, { dx: 2 }),
+      s(140, { dx: 2, eyes: 'closed' }),
+      s(900, { dx: 2 }),
+      ...repeat(8, (i) => s(450, { legs: i % 2 ? 2 : 1, dx: 2 - Math.ceil((i + 1) / 2) })),
+      s(1_400, { dx: -2, eyeDx: -1 }),
+      s(140, { dx: -2, eyes: 'closed' }),
+      s(900, { dx: -2 }),
+      ...repeat(4, (i) => s(450, { legs: i % 2 ? 2 : 1, dx: -2 + Math.ceil((i + 1) / 2) })),
+      s(1_600),
     ],
   },
   sleep: {
@@ -203,13 +208,7 @@ export const CLIPS = {
   },
   snowedIn: {
     loop: true,
-    steps: repeat(24, (i) =>
-      s(200, {
-        prop: { snow: i },
-        eyes: i % 12 < 2 ? 'closed' : 'open',
-        dx: i % 12 === 6 || i % 12 === 8 ? 1 : 0,
-      }),
-    ),
+    steps: repeat(24, (i) => s(200, { prop: { snow: i }, eyes: i % 12 < 2 ? 'closed' : 'open' })),
   },
   bumpLeft: { loop: false, steps: bumpSteps('left') },
   bumpRight: { loop: false, steps: bumpSteps('right') },
@@ -301,6 +300,7 @@ export const CLIPS = {
 
 export const CLIP_NAMES = Object.keys(CLIPS) as Clip[];
 
-export function clipDuration(clip: Clip): number {
-  return durationOf(CLIPS[clip].steps);
+// How long the clip plays at `pace` (1 as drawn, 2 twice as fast).
+export function clipDuration(clip: Clip, pace = 1): number {
+  return durationOf(CLIPS[clip].steps) / pace;
 }

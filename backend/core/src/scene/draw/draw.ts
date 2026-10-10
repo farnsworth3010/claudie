@@ -16,6 +16,8 @@ import {
 import { paintBubble, paintFx } from './fx.ts';
 import { drawProp } from './props/prop.ts';
 
+const GAPING_EYES = { x: 0, y: -1 };
+
 // One pose as a GRID_W x GRID_H grid of palette slots, facing right.
 export function draw(pose: Pose, appearance: Appearance): Uint8Array {
   const { skin, spin, sick, sweat, gaze, bubble } = appearance;
@@ -34,7 +36,8 @@ export function draw(pose: Pose, appearance: Appearance): Uint8Array {
   paintLegs(set, pose.legs ?? 0, legLen, squash);
 
   const eyes = pose.eyes ?? 'open';
-  const eyeDir = eyeDirection(pose, gaze);
+  // A gaping mouth reaches up to the eyes: they squeeze up out of its way and stop following the pointer.
+  const eyeDir = pose.mouth === 2 ? GAPING_EYES : eyeDirection(pose, gaze);
   if (!pose.skeleton) paintEyes(set, eyes, eyeDir, squash, sick);
   if (pose.skeleton) paintBones(grid, set, eyes !== 'closed' ? gaze : undefined);
   if (pose.mouth) paintMouth(set, pose.mouth);

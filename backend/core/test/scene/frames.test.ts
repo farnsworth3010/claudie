@@ -8,7 +8,7 @@ import { PAL } from '../../src/scene/constants/look.ts';
 import { AGENT_LEAVE_MS, HANDOVER_MS, WALK_MS } from '../../src/scene/constants/timing.ts';
 import { frameAt, sceneFrameAt } from '../../src/scene/frames.ts';
 import { lookPalette, sickness, skinPalette } from '../../src/scene/look.ts';
-import type { Clip, Gaze } from '../../src/scene/types.ts';
+import type { Clip, FrameMods, Gaze } from '../../src/scene/types.ts';
 
 const colorsIn = (clip: Clip) => {
   const seen = new Set<number>();
@@ -38,35 +38,16 @@ test('every clip renders full-size frames; bubbles and z appear where expected',
   assert.equal(frameAt('enter', WALK_MS).dx, 0);
 });
 
-test('startled flinches once and stares, then settles back to standing', () => {
-  assert.equal(CLIPS.startled.loop, false);
-  const ms = clipDuration('startled');
-  assert.ok(ms >= 1500 && ms <= 2000, `${ms} ms`);
-  const flinch = frameAt('startled', 0);
-  assert.notDeepEqual(flinch.pixels, frameAt('stand', 0).pixels);
-  assert.ok(flinch.pixels.includes(PAL.shade), 'eyes squeezed shut');
-  // The jolt leaps with the eyes wide open: three rows of lift at its peak.
-  const jolt = frameAt('startled', 90 + 80 + 20);
-  assert.ok(jolt.pixels.indexOf(PAL.body) < frameAt('stand', 0).pixels.indexOf(PAL.body), 'body lifted');
-  assert.deepEqual(frameAt('startled', ms - 1).pixels, frameAt('stand', 0).pixels, 'ends standing');
-  const frames = new Set<string>();
-  for (let t = 0; t < ms; t += 10) frames.add(frameAt('startled', t).pixels.join());
-  assert.ok(frames.size >= 6, `${frames.size} distinct frames`);
-});
-
-test('refused shakes its head with a red cross, slumps a little and ends standing', () => {
-  assert.equal(CLIPS.refused.loop, false);
-  const ms = clipDuration('refused');
-  assert.ok(ms >= 1500 && ms <= 2000, `${ms} ms`);
-  assert.notDeepEqual(frameAt('refused', 0).pixels, frameAt('stand', 0).pixels);
-  // dx alternates one pixel each way, the eyes glancing along.
-  const shakes = [0, 1, 2, 3, 4, 5].map((i) => frameAt('refused', i * 110 + 10).dx);
-  assert.deepEqual(shakes, [-1, 1, -1, 1, -1, 1]);
-  has('refused', PAL.red);
-  assert.ok(!frameAt('refused', ms - 1).pixels.includes(PAL.red), 'the cross is gone by the end');
-  assert.ok(frameAt('refused', 110 * 6 + 120 + 250).pixels.includes(PAL.shade), 'slumped with closed eyes');
-  assert.deepEqual(frameAt('refused', ms - 1).pixels, frameAt('stand', 0).pixels, 'ends standing');
-  assert.equal(frameAt('refused', ms - 1).dx, 0);
+test('puzzled darts its eyes, shrugs under a question mark and ends standing, quickly', () => {
+  assert.equal(CLIPS.puzzled.loop, false);
+  const ms = clipDuration('puzzled');
+  assert.ok(ms >= 1200 && ms <= 2000, `${ms} ms`);
+  const stand = frameAt('stand', 0).pixels;
+  assert.notDeepEqual(frameAt('puzzled', 200).pixels, frameAt('puzzled', 400).pixels, 'the eyes dart');
+  const shrug = frameAt('puzzled', 120 + 220 + 220 + 140 + 100).pixels;
+  assert.ok(shrug.includes(PAL.blue), 'a question mark');
+  assert.deepEqual(frameAt('puzzled', ms - 1).pixels, stand, 'ends standing');
+  assert.equal(frameAt('puzzled', ms - 1).dx, 0);
 });
 
 test('fidget cycles through cube, juggling, guitar and tea props', () => {
@@ -121,7 +102,7 @@ test('every skin draws its accessory in its own colours', () => {
   for (const skin of SKIN_IDS) assert.notDeepEqual(frameAt('work', 0, { skin }).pixels, plain, skin);
 });
 
-test('sickness grows with context: sweat, then fever, then ice pack and shivers', () => {
+test('sickness grows with context: sweat, then fever, then ice pack', () => {
   assert.deepEqual([undefined, 0, 0.49, 0.5, 0.64, 0.65, 0.79, 0.8, 1].map(sickness), [0, 0, 0, 1, 1, 2, 2, 3, 3]);
   const seen = (sick: number, c: number) => {
     for (let t = 0; t < 2400; t += 100) if (frameAt('stand', t, { sick }).pixels.includes(c)) return true;
@@ -130,9 +111,7 @@ test('sickness grows with context: sweat, then fever, then ice pack and shivers'
   assert.ok(!seen(0, PAL.ice) && seen(1, PAL.ice));
   assert.ok(!seen(1, PAL.cheek) && seen(2, PAL.cheek));
   assert.notEqual(lookPalette({ hue: 0, size: 0 }, 3)[PAL.body], lookPalette({ hue: 0, size: 0 })[PAL.body]);
-  assert.equal(frameAt('stand', 0, { sick: 3 }).dx, 0);
-  assert.equal(frameAt('stand', 130, { sick: 3 }).dx, 1);
-  assert.equal(frameAt('stand', 130, { sick: 2 }).dx, 0);
+  for (let t = 0; t < 3000; t += 50) assert.equal(frameAt('stand', t, { sick: 3 }).dx, 0, `no shiver at ${t}`);
 });
 
 test('open eyes follow the gaze, closed ones and glasses-free hats stay put', () => {
@@ -272,6 +251,53 @@ test('a skeleton has no eyes to move, only a red glint in each socket that follo
         `gaze ${x},${y}`,
       );
       assert.equal(right[0] - left[0], 6, `gaze ${x},${y}`);
+    }
+  }
+});
+
+test('snowed in, the mascot holds still: only the snow and its blinks move', () => {
+  for (let t = 0; t < clipDuration('snowedIn'); t += 50) assert.equal(frameAt('snowedIn', t).dx, 0, `at ${t}`);
+});
+
+test('at pace 2 a clip is where it would be at twice the time; a handover keeps real time', () => {
+  for (const t of [0, 300, 900, 2_000]) {
+    assert.deepEqual(frameAt('type', t, { pace: 2 }).pixels, frameAt('type', t * 2).pixels, `at ${t}`);
+  }
+  assert.deepEqual(frameAt('deliver', 900, { pace: 2 }).pixels, frameAt('deliver', 900).pixels);
+});
+
+test('strolling is slow and stays within two pixels of its place', () => {
+  assert.equal(CLIPS.stroll.loop, true);
+  assert.ok(CLIPS.stroll.steps.every((step) => step.ms >= 140 && Math.abs(step.pose.dx ?? 0) <= 2));
+  assert.ok(
+    CLIPS.stroll.steps.filter((step) => step.pose.legs).every((step) => step.ms >= 400),
+    'slow steps',
+  );
+  assert.equal(frameAt('stroll', 0).dx, 1);
+  assert.equal(frameAt('stroll', clipDuration('stroll') - 1).dx, 0, 'back in the middle at the end of a lap');
+});
+
+test('with the mouth gaping, the eyes keep clear of it whatever they look at', () => {
+  const mouthOf = (mods: FrameMods) => {
+    for (let t = 0; t < 12_000; t += 20) {
+      const f = sceneFrameAt('pop', t, mods);
+      if (f.pixels.filter((c) => c === PAL.red).length >= 12) return f.pixels; // the big mouth
+    }
+    throw new Error('no gaping frame');
+  };
+  for (const gaze of [undefined, { x: -1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: -1 }] as const) {
+    const pixels = mouthOf({ gaze });
+    const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < GRID_W && y < GRID_H ? pixels[y * GRID_W + x] : 0);
+    const near = (i: number, color: number) =>
+      [-1, 0, 1].some((dy) => [-1, 0, 1].some((dx) => at((i % GRID_W) + dx, Math.floor(i / GRID_W) + dy) === color));
+    const outline = new Set([...pixels.keys()].filter((i) => pixels[i] === PAL.ink && near(i, PAL.red)));
+    const eyes = [...pixels.keys()].filter((i) => pixels[i] === PAL.ink && !outline.has(i));
+    assert.ok(eyes.length >= 2, 'eyes drawn');
+    for (const i of eyes) {
+      const touches = [-1, 0, 1].some((dy) =>
+        [-1, 0, 1].some((dx) => outline.has(i + dy * GRID_W + dx) && Math.abs(((i + dx) % GRID_W) - (i % GRID_W)) <= 1),
+      );
+      assert.ok(!touches, `an eye touches the mouth, gaze ${JSON.stringify(gaze)}`);
     }
   }
 });

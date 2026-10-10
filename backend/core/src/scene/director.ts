@@ -17,69 +17,85 @@ import {
   REACTION_CLIPS,
   STROLLERS,
   TOOL_CLIPS,
+  TOOL_HOLD_MS,
   YAWN_AT,
 } from './constants/director.ts';
 import { AGENT_LEAVE_MS, HANDOVER_AT, WALK_MS } from './constants/timing.ts';
-import type { Behaviour, Clip, Cue, Reaction, Side } from './types.ts';
+import type { Behaviour, Clip, Cue, Reaction, Side, ToolHold } from './types.ts';
 
 export function toolClip(tool: string | undefined): Clip {
   if (tool === undefined || !Object.hasOwn(TOOL_CLIPS, tool)) return DEFAULT_TOOL_CLIP;
   return TOOL_CLIPS[tool];
 }
 
+// A timing setting, in seconds, as ms; the built-in one when it isn't set.
+const seconds = (value: number | undefined, fallback: number): number =>
+  value === undefined ? fallback : value * 1000;
+
 // The bubble a clip that calls for attention keeps up.
 const bubbleOf = (clip: Clip): Cue['bubble'] => (clip === 'alert' ? 'bang' : clip === 'ask' ? 'question' : undefined);
 
-function impatient(plain: Cue, since: number, now: number): Cue {
-  const t = now - since - PATIENCE_MS;
+function impatient(plain: Cue, since: number, now: number, patience: number): Cue {
+  const t = now - since - patience;
   if (t < 0) return plain;
   const round = Math.floor(t / ANTIC_ROUND_MS);
   if (t - round * ANTIC_ROUND_MS >= ANTIC_MS) return plain;
   return {
     clip: ANTICS[round % ANTICS.length],
-    startedAt: since + PATIENCE_MS + round * ANTIC_ROUND_MS,
+    startedAt: since + patience + round * ANTIC_ROUND_MS,
     bubble: plain.clip === 'ask' ? 'question' : 'bang',
   };
 }
 
 // Left idle long enough, a sleeping mascot gathers cobwebs and worse; undefined while it is not that long.
-function neglectCue(idleFor: number, since: number, now: number): Cue | undefined {
-  const stage = [...NEGLECT].reverse().find(([at]) => idleFor >= at);
+// `after`: when the first stage comes; the later ones keep their proportions to it.
+function neglectCue(idleFor: number, since: number, now: number, pace: number, after: number): Cue | undefined {
+  const stretch = after / NEGLECT[0][0];
+  const stage = [...NEGLECT].reverse().find(([at]) => idleFor >= at * stretch);
   if (!stage) return undefined;
-  const [at, clip] = stage;
+  const at = stage[0] * stretch;
+  const clip = stage[1];
   const start = since + at;
   // The flower sprouts once, then keeps blooming.
   if (clip !== 'overgrown') return { clip, startedAt: start };
-  const grown = start + clipDuration('sprout');
+  const grown = start + clipDuration('sprout', pace);
   return now < grown ? { clip: 'sprout', startedAt: start } : { clip: 'overgrown', startedAt: grown };
 }
 
 // What a session that has nothing to do plays, by how long it has been idle.
 function idleCue(session: Session, now: number, behaviour: Behaviour): Cue {
   const idleFor = now - session.since;
+  const pace = behaviour.pace ?? 1;
   const opening = OPENINGS[session.mood];
-  if (opening && idleFor < clipDuration(opening)) return { clip: opening, startedAt: session.since };
-  const neglect = behaviour.neglect === false ? undefined : neglectCue(idleFor, session.since, now);
+  if (opening && idleFor < clipDuration(opening, pace)) return { clip: opening, startedAt: session.since };
+  if (behaviour.stroll)
+    return { clip: 'stroll', startedAt: session.since + (opening ? clipDuration(opening, pace) : 0) };
+  const neglectAfter = seconds(behaviour.neglectAfter, NEGLECT[0][0]);
+  const neglect = behaviour.neglect === false ? undefined : neglectCue(idleFor, session.since, now, pace, neglectAfter);
   if (neglect) return neglect;
-  const yawnEnd = YAWN_AT + clipDuration('yawn');
+  const yawnAt = seconds(behaviour.sleepAfter, YAWN_AT);
+  const lookAroundAt = yawnAt * (LOOK_AROUND_AT / YAWN_AT);
+  const yawnEnd = yawnAt + clipDuration('yawn', pace);
   if (idleFor >= yawnEnd) return { clip: 'sleep', startedAt: session.since + yawnEnd };
-  if (idleFor >= YAWN_AT) return { clip: 'yawn', startedAt: session.since + YAWN_AT };
-  if (idleFor >= LOOK_AROUND_AT && idleFor < LOOK_AROUND_AT + clipDuration('lookAround')) {
-    return { clip: 'lookAround', startedAt: session.since + LOOK_AROUND_AT };
+  if (idleFor >= yawnAt) return { clip: 'yawn', startedAt: session.since + yawnAt };
+  if (idleFor >= lookAroundAt && idleFor < lookAroundAt + clipDuration('lookAround', pace)) {
+    return { clip: 'lookAround', startedAt: session.since + lookAroundAt };
   }
   return { clip: 'stand', startedAt: session.since };
 }
 
 // What the session's own mascot plays at `now`; the stage asks every tick.
 export function director(session: Session, now: number, behaviour: Behaviour = {}): Cue {
-  const fret = (plain: Cue): Cue => (behaviour.antics === false ? plain : impatient(plain, session.since, now));
+  const patience = seconds(behaviour.patience, PATIENCE_MS);
+  const fret = (plain: Cue): Cue =>
+    behaviour.antics === false ? plain : impatient(plain, session.since, now, patience);
   if (session.leavingAt !== undefined) return { clip: 'leave', startedAt: session.leavingAt };
   if (now - session.startedAt < WALK_MS) return { clip: 'enter', startedAt: session.startedAt };
   if (session.activity === 'waiting') return fret({ clip: 'alert', startedAt: session.since });
   if (session.activity === 'asking') return fret({ clip: 'ask', startedAt: session.since });
   if (session.activity === 'compacting') return { clip: 'compact', startedAt: session.since };
   const reactionClip = session.reaction && REACTION_CLIPS[session.reaction.kind];
-  if (reactionClip && session.reaction && now - session.reaction.at < clipDuration(reactionClip)) {
+  if (reactionClip && session.reaction && now - session.reaction.at < clipDuration(reactionClip, behaviour.pace)) {
     return { clip: reactionClip, startedAt: session.reaction.at };
   }
   if (session.activity === 'thinking') return { clip: 'work', startedAt: session.since };
@@ -99,18 +115,21 @@ export function agentCue(agent: Agent, now: number, waiting: boolean, leftAt?: n
 
 // A reaction plays over whatever the mascot was doing, then hands back; walking in or off wins.
 // A dialog's bubble stays up over it, so a poke never hides that something waits for an answer.
-export function react(cue: Cue, reaction: Reaction | undefined, now: number): Cue {
+export function react(cue: Cue, reaction: Reaction | undefined, now: number, pace = 1): Cue {
   if (!reaction || cue.clip === 'enter' || cue.clip === 'leave' || cue.clip === 'deliver') return cue;
-  if (now - reaction.at >= clipDuration(reaction.clip)) return cue;
+  if (now - reaction.at >= clipDuration(reaction.clip, pace)) return cue;
   const bubble = cue.bubble ?? bubbleOf(cue.clip);
   return { clip: reaction.clip, startedAt: reaction.at, ...(bubble && { bubble }) };
 }
 
 // While dragged across the screen the crew walks along; anything that shows a state of its own
 // (a call for attention, sleep, cobwebs, bones, an antic, a reaction) carries on as it is.
-export function walking(cue: Cue): Cue {
-  return STROLLERS.has(cue.clip) ? { clip: 'walk', startedAt: 0 } : cue;
+export function walking(cue: Cue, heading: 1 | -1 = 1): Cue {
+  return STROLLERS.has(cue.clip) ? { clip: 'walk', startedAt: 0, ...(heading < 0 && { mirror: true }) } : cue;
 }
+
+// Whether the mascot can walk along without dropping what it shows.
+export const strolls = (cue: Cue): boolean => STROLLERS.has(cue.clip);
 
 export const isLively = (cue: Cue): boolean => LIVELY.has(cue.clip);
 
@@ -120,11 +139,11 @@ export const bumpClip = (side: Side): Clip => BUMPS[side];
 export const agentHasLeft = (leftAt: number, now: number): boolean => now - leftAt >= AGENT_LEAVE_MS;
 
 // The main mascot takes the scroll from a mini that is handing it over, unless it is asking for something.
-export function receiving(cue: Cue, leftAt: readonly number[], now: number): Cue {
+export function receiving(cue: Cue, leftAt: readonly number[], now: number, pace = 1): Cue {
   if (cue.clip === 'alert' || cue.clip === 'ask' || cue.clip === 'enter' || cue.clip === 'leave') return cue;
   for (const left of leftAt) {
     const at = left + HANDOVER_AT;
-    if (now >= at && now - at < clipDuration('receive')) return { clip: 'receive', startedAt: at };
+    if (now >= at && now - at < clipDuration('receive', pace)) return { clip: 'receive', startedAt: at };
   }
   return cue;
 }
@@ -133,16 +152,16 @@ export function receiving(cue: Cue, leftAt: readonly number[], now: number): Cue
 // awake and alone gets an exchange, the left one opening and the right one, mirrored, replying.
 // Both must already have been idle when the slot began, so nobody joins mid-sentence.
 // The result follows `onScreen`, left to right.
-export function socialCues(onScreen: readonly Session[], now: number): (Cue | undefined)[] {
+export function socialCues(onScreen: readonly Session[], now: number, behaviour: Behaviour = {}): (Cue | undefined)[] {
   const cues: (Cue | undefined)[] = onScreen.map(() => undefined);
-  const length = clipDuration('chatA');
+  const length = clipDuration('chatA', behaviour.pace);
   const free = (candidate: Session, at: number): boolean =>
     candidate.activity === 'idle' &&
     candidate.leavingAt === undefined &&
     candidate.since <= at &&
     candidate.agents.length === 0 &&
-    AWAKE.has(director(candidate, at).clip) &&
-    AWAKE.has(director(candidate, now).clip);
+    AWAKE.has(director(candidate, at, behaviour).clip) &&
+    AWAKE.has(director(candidate, now, behaviour).clip);
   for (let i = 0; i + 1 < onScreen.length; i++) {
     if (cues[i]) continue;
     const offset = (i * CHAT_STAGGER_MS) % CHAT_EVERY_MS;
@@ -152,4 +171,22 @@ export function socialCues(onScreen: readonly Session[], now: number): (Cue | un
     cues[i + 1] = { clip: 'chatB', startedAt: at, mirror: true };
   }
   return cues;
+}
+
+const TOOL_CLIP_SET: ReadonlySet<Clip> = new Set(Object.values(TOOL_CLIPS));
+
+// A tool's clip stays up TOOL_HOLD_MS even when the tool is done sooner, unless something that
+// matters more (a dialog, a result, the end of the turn) takes over; thinking doesn't. The same
+// tool again carries on the clip instead of starting it over.
+export function holdTool(cue: Cue, hold: ToolHold | undefined, now: number): { cue: Cue; hold?: ToolHold } {
+  if (TOOL_CLIP_SET.has(cue.clip)) {
+    const carriesOn = hold && hold.clip === cue.clip && now < hold.until;
+    const startedAt = carriesOn ? hold.startedAt : cue.startedAt;
+    const until = Math.max(carriesOn ? hold.until : 0, cue.startedAt + TOOL_HOLD_MS);
+    return { cue: { ...cue, startedAt }, hold: { clip: cue.clip, startedAt, until } };
+  }
+  if (hold && now < hold.until && cue.clip === DEFAULT_TOOL_CLIP) {
+    return { cue: { clip: hold.clip, startedAt: hold.startedAt }, hold };
+  }
+  return { cue };
 }

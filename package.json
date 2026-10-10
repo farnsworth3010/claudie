@@ -11,7 +11,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "go:check": "cd backend/daemon && gofmt -l . | (! grep .) && go vet ./... && go test ./... && go tool govulncheck ./...",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "media": "node backend/core/tools/media/render.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

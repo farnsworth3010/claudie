@@ -6,6 +6,7 @@ protocol InputDelegate: AnyObject {
   func pointerDown()
   func pointerDragged()
   func pointerUp()
+  func secondaryClicked()
   func scrolled(_ event: NSEvent)
 }
 
@@ -25,5 +26,6 @@ final class InputView: NSView {
   override func mouseDown(with event: NSEvent) { delegate?.pointerDown() }
   override func mouseDragged(with event: NSEvent) { delegate?.pointerDragged() }
   override func mouseUp(with event: NSEvent) { delegate?.pointerUp() }
+  override func rightMouseDown(with event: NSEvent) { delegate?.secondaryClicked() }
   override func scrollWheel(with event: NSEvent) { delegate?.scrolled(event) }
 }

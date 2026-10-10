@@ -16,6 +16,8 @@ export const TOOL_CLIPS: Readonly<Record<string, Clip>> = {
   WebFetch: 'globe',
 };
 export const DEFAULT_TOOL_CLIP: Clip = 'work';
+// Quick tools (a Read, a Grep) finish in a blink; their clip stays at least this long anyway.
+export const TOOL_HOLD_MS = 1_500;
 
 export const REACTION_CLIPS: Readonly<Record<ReactionKind, Clip>> = {
   shipped: 'confetti',
@@ -27,8 +29,8 @@ export const REACTION_CLIPS: Readonly<Record<ReactionKind, Clip>> = {
 export const OPENINGS: Readonly<Partial<Record<Mood, Clip>>> = {
   done: 'celebrate',
   error: 'sad',
-  interrupted: 'startled',
-  denied: 'refused',
+  interrupted: 'puzzled',
+  denied: 'puzzled',
 };
 
 // Idle and alone: a look around, a yawn, then sleep.
@@ -54,10 +56,10 @@ export const NEGLECT: ReadonlyArray<readonly [number, Clip]> = [
 export const STROLLERS: ReadonlySet<Clip> = new Set<Clip>([
   'stand',
   'lookAround',
+  'stroll',
   'celebrate',
   'sad',
-  'startled',
-  'refused',
+  'puzzled',
   'work',
   'type',
   'hammer',
@@ -91,4 +93,4 @@ export const BUMPS: Readonly<Record<Side, Clip>> = {
 // Chatting
 export const CHAT_EVERY_MS = 30_000;
 export const CHAT_STAGGER_MS = 7_300; // neighbouring pairs never chat at once: the exchange is shorter
-export const AWAKE: ReadonlySet<Clip> = new Set<Clip>(['stand', 'lookAround']);
+export const AWAKE: ReadonlySet<Clip> = new Set<Clip>(['stand', 'lookAround', 'stroll']);

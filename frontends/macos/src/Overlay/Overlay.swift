@@ -8,6 +8,7 @@ import QuartzCore
 final class Overlay: NSObject, InputDelegate {
   private let engine: Engine
   private let perform: (Action) -> Void
+  private let openSettings: () -> Void
   private let images = ImageCache()
   private let panel = Panel(contentRect: .zero)
   private let input = InputView()
@@ -18,11 +19,14 @@ final class Overlay: NSObject, InputDelegate {
   private var fast = false
   private var lastTick: CFTimeInterval = 0
   private var dragging = false
+  private var clickThrough = false
+  private var edges = ScreenEdges(overDock: true, overMenuBar: false)
   private var monitors: [Any] = []
 
-  init(engine: Engine, perform: @escaping (Action) -> Void) {
+  init(engine: Engine, perform: @escaping (Action) -> Void, openSettings: @escaping () -> Void) {
     self.engine = engine
     self.perform = perform
+    self.openSettings = openSettings
     super.init()
 
     input.delegate = self
@@ -68,6 +72,11 @@ final class Overlay: NSObject, InputDelegate {
     tick()
   }
 
+  // The panel takes the mouse only over a Clawd, but a right click may land as it moves away.
+  func secondaryClicked() {
+    if engine.hit(pointer()) { openSettings() }
+  }
+
   // Ctrl+scroll resizes; a wheel notch is one step, a touchpad's points add up to steps.
   func scrolled(_ event: NSEvent) {
     guard event.modifierFlags.contains(.control) else { return }
@@ -78,8 +87,10 @@ final class Overlay: NSObject, InputDelegate {
     tick()
   }
 
+  // Click-through lets the mouse past the Clawds unless ⌥ Option is held; a drag keeps it to the end.
   func updateMouse() {
-    let take = engine.hit(pointer())
+    let reachable = !clickThrough || NSEvent.modifierFlags.contains(.option)
+    let take = dragging || (reachable && engine.hit(pointer()))
     if panel.ignoresMouseEvents == take { panel.ignoresMouseEvents = !take }
   }
 
@@ -106,10 +117,11 @@ final class Overlay: NSObject, InputDelegate {
 
   // The panel must start taking the mouse as soon as the pointer comes over a Clawd.
   private func installMouseMonitors() {
-    if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved], handler: { [weak self] _ in
+    // flagsChanged: pressing ⌥ over a Clawd with click-through on, without moving the mouse.
+    if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .flagsChanged], handler: { [weak self] _ in
       MainActor.assumeIsolated { self?.updateMouse() }
     }) { monitors.append(monitor) }
-    if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved], handler: { [weak self] event in
+    if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .flagsChanged], handler: { [weak self] event in
       MainActor.assumeIsolated { self?.updateMouse() }
       return event
     }) { monitors.append(monitor) }
@@ -118,9 +130,7 @@ final class Overlay: NSObject, InputDelegate {
   private func rebuild() {
     let space = SceneSpace.current()
     engine.setScreens(NSScreen.screens.enumerated().map { index, screen -> SceneScreen in
-      // The whole screen but the menu bar: the panel sits above the Dock, so the Clawds may stand on it.
-      var area = screen.frame
-      area.size.height = screen.visibleFrame.maxY - area.minY
+      let area = edges.area(of: screen)
       let id = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.intValue ?? index
       return SceneScreen(id: id, area: SceneRect(space.toScene(area)))
     })
@@ -144,6 +154,13 @@ final class Overlay: NSObject, InputDelegate {
       return
     }
     if view.overFullscreen != panel.overFullscreen { panel.overFullscreen = view.overFullscreen }
+    clickThrough = view.clickThrough
+    let wanted = ScreenEdges(overDock: view.overDock, overMenuBar: view.overMenuBar)
+    if wanted != edges {
+      edges = wanted
+      // Not from inside a render: rebuilding the screens ticks and renders again.
+      DispatchQueue.main.async { [weak self] in self?.rebuild() }
+    }
     if panel.alphaValue != CGFloat(view.opacity) { panel.alphaValue = CGFloat(view.opacity) }
     tooltip.update(view.tooltip, scale: panel.backingScaleFactor)
 

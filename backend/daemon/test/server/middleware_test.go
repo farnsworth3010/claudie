@@ -45,7 +45,9 @@ func TestGuardTurnsAwayWebPages(t *testing.T) {
 		{"form post", "POST", "/hook", "text/plain", nil, http.StatusUnsupportedMediaType},
 		{"localhost is fine", "GET", "/state", "", map[string]string{"Host": "localhost:" + e.port}, http.StatusOK},
 		{"own origin is fine", "POST", "/hook", "application/json", map[string]string{"Origin": "http://127.0.0.1:" + e.port}, http.StatusNoContent},
-		{"wrong method", "GET", "/hook", "", nil, http.StatusMethodNotAllowed},
+		{"wrong method", "DELETE", "/hook", "", nil, http.StatusMethodNotAllowed},
+		{"the page", "GET", "/", "", nil, http.StatusOK},
+		{"the page to a foreign Host", "GET", "/", "", map[string]string{"Host": "evil.example:" + e.port}, http.StatusForbidden},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

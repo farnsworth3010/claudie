@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"claudie/daemon/internal/dedup"
 	"claudie/daemon/internal/eventlog"
 	"claudie/daemon/internal/hub"
 	"claudie/daemon/internal/store"
@@ -32,6 +33,8 @@ type Options struct {
 	EventLog     *eventlog.Log // nil: no event log
 	Saver        *store.Saver  // nil: sessions aren't kept across restarts
 	SettingsPath string        // "": settings aren't kept across restarts
+	Version      string        // what GET /version answers
+	Quit         func()        // called on POST /quit; nil: refused
 
 	// Zero values mean the real clock, process check and timer intervals.
 	Now             func() time.Time
@@ -47,6 +50,9 @@ type Options struct {
 //	GET  /events    server-sent events: the snapshot on connect and after every change
 //	GET  /settings  the overlay settings
 //	POST /settings  a JSON patch of them, answered with the settings after it
+//	GET  /version   {"version": …}, so a newer plugin can replace an older daemon
+//	POST /quit      stop
+//	GET  /          the settings page and its files
 //
 // Its timers (liveness, transcripts) run while Serve does.
 type Server struct {
@@ -55,6 +61,9 @@ type Server struct {
 	hosts        []string
 	saver        *store.Saver
 	settingsPath string
+	version      string
+	quit         func()
+	repeats      *dedup.Window
 
 	now             func() time.Time
 	alive           func(pid int) bool

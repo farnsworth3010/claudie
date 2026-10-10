@@ -1,0 +1,17 @@
+{
+  "/events": {
+    "target": "http://127.0.0.1:47321",
+    "changeOrigin": true,
+    "headers": { "Origin": "http://127.0.0.1:47321" }
+  },
+  "/settings": {
+    "target": "http://127.0.0.1:47321",
+    "changeOrigin": true,
+    "headers": { "Origin": "http://127.0.0.1:47321" }
+  },
+  "/hook": {
+    "target": "http://127.0.0.1:47321",
+    "changeOrigin": true,
+    "headers": { "Origin": "http://127.0.0.1:47321" }
+  }
+}

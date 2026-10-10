@@ -1,0 +1,14 @@
+<label>
+  {{ spec().label }}
+  <input
+    type="range"
+    [min]="range()[0]"
+    [max]="range()[1]"
+    [step]="spec().step"
+    [value]="value()"
+    (pointerdown)="held.emit(true)"
+    (pointerup)="held.emit(false)"
+    (input)="slide($event)"
+  />
+  <output>{{ spec().caption(value()) }}</output>
+</label>

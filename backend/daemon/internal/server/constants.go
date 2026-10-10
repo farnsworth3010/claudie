@@ -6,6 +6,8 @@ import "time"
 const (
 	maxBody   = 1 << 20
 	pidHeader = "X-Claudie-Pid"
+	// The same event twice within this is one event sent by two copies of the hooks.
+	repeatWindow = 2 * time.Second
 )
 
 // Connections.
