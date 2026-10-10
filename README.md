@@ -145,6 +145,9 @@ curl -X POST -H 'content-type: application/json' -d '{"opacity":0.8}' http://127
    ```
 4. **On the Mac**, stop the app (Ctrl+C where `swift run` runs), forget its saved position with `defaults delete Claudie`, and delete the clone.
 
+## Plans
+- **Notice a stop before the first word.** Esc or Ctrl+C while Claude is still thinking, before it has written anything, leaves no trace: Claude Code sends no hook and writes nothing to the transcript, so the Clawd keeps thinking until the next prompt (or Claude Code's idle notification about a minute later). A stop after the reply has begun is caught already. This waits for Claude Code to report interruptions.
+
 ## Development
 `pnpm check` runs everything: Biome lint and format, TypeScript typecheck, the TypeScript tests, the build, then `gofmt`, `go vet`, the Go tests and `govulncheck`. Commit messages follow Conventional Commits, checked by commitlint. A release is a tag `vX.Y.Z` matching `version` in `backend/plugin/.claude-plugin/plugin.json`: CI builds the daemon for every platform and publishes it. See [CLAUDE.md](CLAUDE.md) for the layout and the rules the code follows.
 
