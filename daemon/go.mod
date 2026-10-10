@@ -1,0 +1,3 @@
+module claudie/daemon
+
+go 1.27.1
