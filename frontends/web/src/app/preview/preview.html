@@ -1,0 +1,13 @@
+<canvas
+  #canvas
+  [class.grab]="grab()"
+  aria-label="Your sessions, as the overlay shows them"
+  (pointermove)="moved($event)"
+  (pointerleave)="left()"
+  (pointerdown)="pressed($event)"
+  (pointerup)="released()"
+  (wheel)="wheeled($event)"
+></canvas>
+@if (tooltip(); as tip) {
+  <div #tooltip class="tooltip">{{ tip.text }}</div>
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@claudie/core",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=25"
+  },
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "test": "node --test 'test/**/*.test.ts'",
+    "typecheck": "tsc",
+    "build": "esbuild src/entries/daemon.ts --bundle --format=iife --target=es2017 --outfile=../daemon/internal/core/core.js --log-level=warning && esbuild src/entries/app.ts --bundle --format=iife --target=es2022 --outfile=../../frontends/macos/src/Resources/scene.js --log-level=warning"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.9",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

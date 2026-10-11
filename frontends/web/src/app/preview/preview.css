@@ -1,0 +1,28 @@
+:host {
+  display: block;
+  position: relative;
+  height: 340px;
+  border-radius: 8px;
+  background: var(--stage);
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+canvas.grab {
+  cursor: grab;
+}
+
+.tooltip {
+  position: absolute;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(20, 18, 16, 0.92);
+  color: #f1ece6;
+  font-size: 12px;
+  white-space: pre-line;
+  pointer-events: none;
+}

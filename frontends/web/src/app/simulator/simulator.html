@@ -1,0 +1,34 @@
+<div class="row">
+  <button type="button" class="demo" [disabled]="demoRunning()" (click)="demo()">
+    {{ demoRunning() ? 'Demo running…' : 'Random demo' }}
+  </button>
+  <button type="button" (click)="start()">+ session</button>
+  <select aria-label="Made-up session" [disabled]="!sessions().length" (change)="selectedId.set(chosen($event))">
+    @for (session of sessions(); track session.id) {
+      <option [value]="session.id" [selected]="session.id === selectedId()">{{ session.name }}</option>
+    }
+  </select>
+</div>
+
+@if (selected()) {
+  <div class="row">
+    @for (button of buttons; track button.label) {
+      <button type="button" (click)="send(button.action)">{{ button.label }}</button>
+    }
+  </div>
+  <div class="row">
+    <select aria-label="Tool" (change)="tool.set(chosen($event))">
+      @for (name of tools; track name) {
+        <option [value]="name" [selected]="name === tool()">{{ name }}</option>
+      }
+    </select>
+    <button type="button" (click)="send({ kind: 'tool', tool: tool() })">use tool</button>
+    <select aria-label="Subagent type" (change)="agentType.set(chosen($event))">
+      @for (name of agentTypes; track name) {
+        <option [value]="name" [selected]="name === agentType()">{{ name }}</option>
+      }
+    </select>
+    <button type="button" (click)="startAgent()">+ subagent</button>
+    <button type="button" (click)="stopAgent()">subagent done</button>
+  </div>
+}

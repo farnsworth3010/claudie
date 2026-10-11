@@ -1,0 +1,3 @@
+#!/bin/sh
+# Rejects commit messages that break Conventional Commits (commitlint.config.js).
+exec pnpm exec commitlint --edit "$1"

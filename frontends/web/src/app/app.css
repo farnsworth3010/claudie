@@ -1,0 +1,40 @@
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status[data-ok]::before {
+  content: "● ";
+}
+
+.status[data-ok="true"]::before {
+  color: var(--ok);
+}
+
+.status[data-ok="false"]::before {
+  color: var(--bad);
+}
+
+.overview {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr);
+  gap: 20px;
+}
+
+@media (max-width: 720px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

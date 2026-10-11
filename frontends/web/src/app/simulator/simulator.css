@@ -1,0 +1,14 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.row + .row {
+  margin-top: 12px;
+}
+
+.demo {
+  border-color: var(--accent);
+}

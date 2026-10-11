@@ -1,0 +1,12 @@
+{
+  "name": "claudie",
+  "description": "Claudie: a Clawd on your screen for every Claude Code session",
+  "owner": { "name": "farnsworth3010" },
+  "plugins": [
+    {
+      "name": "claudie",
+      "source": "./backend/plugin",
+      "description": "Sends Claude Code's events to the Claudie daemon, which it starts and keeps up to date"
+    }
+  ]
+}

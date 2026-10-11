@@ -1,0 +1,20 @@
+packages:
+  - backend/core
+  - frontends/web
+
+# Supply chain: don't resolve versions younger than 7 days (minutes), fail instead of falling back.
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+# Refuse a version published with weaker provenance than an earlier one (e.g. lost trusted publishing).
+trustPolicy: no-downgrade
+# Transitive dependencies can't come from git or tarball URLs; unreviewed install scripts fail the install.
+blockExoticSubdeps: true
+strictDepBuilds: true
+
+# esbuild's install script only checks its platform binary; Angular's file watcher and build cache
+# ship prebuilt binaries, so theirs aren't needed.
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: true
+  lmdb: false
+  msgpackr-extract: false

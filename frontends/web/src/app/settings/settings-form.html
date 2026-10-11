@@ -1,0 +1,30 @@
+@for (spec of sliders; track spec.key) {
+  <app-slider-field
+    [spec]="spec"
+    [range]="range(spec)"
+    [value]="values()[spec.key]"
+    (moved)="slide(spec, $event)"
+    (held)="hold(spec.key, $event)"
+  />
+}
+<div class="toggles">
+  @for (flag of flags; track flag) {
+    <label>
+      <input type="checkbox" [checked]="settings()[flag]" (change)="toggle(flag, $event)" />
+      {{ labels[flag] }}
+    </label>
+  }
+</div>
+<h3>Idle timings</h3>
+@for (spec of timings; track spec.key) {
+  <app-slider-field
+    [spec]="spec"
+    [range]="range(spec)"
+    [value]="values()[spec.key]"
+    (moved)="slide(spec, $event)"
+    (held)="hold(spec.key, $event)"
+  />
+}
+<button type="button" class="reset" [class.confirming]="confirming()" (click)="reset()">
+  {{ confirming() ? 'Click again to reset' : 'Reset to defaults' }}
+</button>
