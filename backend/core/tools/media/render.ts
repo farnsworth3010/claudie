@@ -25,6 +25,9 @@ const HERO_SIZE = 6;
 const HERO_FRAMES = 80;
 const HERO_MARGIN = 16;
 const DEFAULT_LOOK = { hue: 0, size: 0 };
+const SKIN_LABEL_HEIGHT = 28;
+const SKIN_LABEL_SIZE = 14;
+const SKIN_LABEL_COLOR = '#c9d1d9';
 
 // The clips shown in the README's table, by the file name they get.
 const CLIPS: ReadonlyArray<{ name: string; clip: Clip; ms?: number; mods?: FrameMods }> = [
@@ -155,15 +158,23 @@ function renderHero(): void {
   );
 }
 
-// Every subagent skin side by side, standing.
+// Every subagent skin side by side, standing, each named below.
 function renderSkins(): void {
   const cell = CLIP_BOX * CLIP_SCALE;
-  const canvas = new Canvas(cell * SKIN_IDS.length, cell, BACKGROUND);
+  const canvas = new Canvas(cell * SKIN_IDS.length, cell + SKIN_LABEL_HEIGHT, BACKGROUND);
   SKIN_IDS.forEach((skin, i) => {
     const frame = frameAt('stand', 0, { skin });
     canvas.sprite(frame.pixels, frame.w, skinPalette(skin), i * cell + 2 * CLIP_SCALE, 2 * CLIP_SCALE, CLIP_SCALE);
   });
-  canvas.save(join(OUT, 'skins.png'));
+  const file = join(OUT, 'skins.png');
+  canvas.save(file);
+  // Text is ImageMagick's job: the canvas only draws rectangles.
+  const style = ['-fill', SKIN_LABEL_COLOR, '-pointsize', String(SKIN_LABEL_SIZE), '-background', 'none'];
+  const labels = SKIN_IDS.flatMap((skin, i) => [
+    ...['(', ...style, '-size', `${cell}x${SKIN_LABEL_HEIGHT}`, '-gravity', 'center', `label:${skin}`, ')'],
+    ...['-gravity', 'NorthWest', '-geometry', `+${i * cell}+${cell}`, '-composite'], // gravity would shift the offsets
+  ]);
+  execFileSync('magick', [file, ...labels, file]);
 }
 
 mkdirSync(OUT, { recursive: true });
