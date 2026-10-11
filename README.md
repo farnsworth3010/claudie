@@ -2,13 +2,13 @@
 
 **Master your terminal sessions, don't just babysit and watch them run.**
 
+**The first desktop pet that's actually useful.**
+
 **English** · [Русский](README.ru.md)
 
-Pixel-art Clawds on your Mac's screen, one for every running Claude Code session, showing what each one is doing: typing, running a command, searching, waiting for your permission, asking a question, done, or long asleep. Subagents join in as mini Clawds around their session's one.
+Pixel-art Clawds on your screen, one for every running Claude Code session, showing what each one is doing: typing, running a command, searching, waiting for your permission, asking a question, done, or long asleep. Subagents join in as mini Clawds around their session's one. Claude Code can run on another machine over ssh: the Clawds still appear on the client.
 
 <p align="center"><img src="docs/media/hero.gif" alt="Six sessions: typing, a crew of subagents, waiting for permission, asking a question, a feverish full context and plan mode"></p>
-
-> **Status: early development.** The Claude Code side installs as a plugin; the Mac app is still built from source.
 
 > Claudie is an unofficial fan project. It is not affiliated with or endorsed by Anthropic. Claude and Clawd belong to Anthropic.
 
@@ -16,11 +16,11 @@ Pixel-art Clawds on your Mac's screen, one for every running Claude Code session
 
 | | | | | |
 |:-:|:-:|:-:|:-:|:-:|
-| <img src="docs/media/clip-type.gif" width="96"><br>editing | <img src="docs/media/clip-hammer.gif" width="96"><br>running a command | <img src="docs/media/clip-search.gif" width="96"><br>reading, searching | <img src="docs/media/clip-globe.gif" width="96"><br>on the web | <img src="docs/media/clip-work.gif" width="96"><br>thinking, other tools |
-| <img src="docs/media/clip-alert.gif" width="96"><br>waiting for permission | <img src="docs/media/clip-ask.gif" width="96"><br>asking a question | <img src="docs/media/clip-fidget.gif" width="96"><br>subagents at work | <img src="docs/media/clip-compact.gif" width="96"><br>compacting | <img src="docs/media/clip-sick.gif" width="96"><br>context almost full |
-| <img src="docs/media/clip-celebrate.gif" width="96"><br>done | <img src="docs/media/clip-sad.gif" width="96"><br>failed | <img src="docs/media/clip-puzzled.gif" width="96"><br>stopped with Esc or turned down | <img src="docs/media/clip-confetti.gif" width="96"><br>committed or pushed | <img src="docs/media/clip-upset.gif" width="96"><br>tests failed |
-| <img src="docs/media/clip-refresh.gif" width="96"><br>fresh after compacting | <img src="docs/media/clip-yawn.gif" width="96"><br>idle, before a nap | <img src="docs/media/clip-sleep.gif" width="96"><br>idle | <img src="docs/media/clip-cobweb.gif" width="96"><br>idle for 5 min | <img src="docs/media/clip-overgrown.gif" width="96"><br>idle for 9 min |
-| <img src="docs/media/clip-snowedIn.gif" width="96"><br>idle for 13 min | <img src="docs/media/clip-skeleton.gif" width="96"><br>idle for 17 min | <img src="docs/media/clip-highJump.gif" width="96"><br>a dialog ignored too long | <img src="docs/media/clip-chatA.gif" width="96"><br>idle neighbours chat | <img src="docs/media/clip-poke.gif" width="96"><br>clicked |
+| <img src="docs/media/clip-type.gif" width="96"><br>Editing | <img src="docs/media/clip-hammer.gif" width="96"><br>Running a command | <img src="docs/media/clip-search.gif" width="96"><br>Reading, searching | <img src="docs/media/clip-globe.gif" width="96"><br>On the web | <img src="docs/media/clip-work.gif" width="96"><br>Thinking, other tools |
+| <img src="docs/media/clip-alert.gif" width="96"><br>Waiting for permission | <img src="docs/media/clip-ask.gif" width="96"><br>Asking a question | <img src="docs/media/clip-fidget.gif" width="96"><br>Subagents at work | <img src="docs/media/clip-compact.gif" width="96"><br>Compacting | <img src="docs/media/clip-sick.gif" width="96"><br>Context almost full |
+| <img src="docs/media/clip-celebrate.gif" width="96"><br>Done | <img src="docs/media/clip-sad.gif" width="96"><br>Failed | <img src="docs/media/clip-puzzled.gif" width="96"><br>Stopped with Esc or turned down | <img src="docs/media/clip-confetti.gif" width="96"><br>Committed or pushed | <img src="docs/media/clip-upset.gif" width="96"><br>Tests failed |
+| <img src="docs/media/clip-refresh.gif" width="96"><br>Fresh after compacting | <img src="docs/media/clip-yawn.gif" width="96"><br>Idle, before a nap | <img src="docs/media/clip-sleep.gif" width="96"><br>Idle | <img src="docs/media/clip-cobweb.gif" width="96"><br>Idle for 5 min | <img src="docs/media/clip-overgrown.gif" width="96"><br>Idle for 9 min |
+| <img src="docs/media/clip-snowedIn.gif" width="96"><br>Idle for 13 min | <img src="docs/media/clip-skeleton.gif" width="96"><br>Idle for 17 min | <img src="docs/media/clip-highJump.gif" width="96"><br>A dialog ignored too long | <img src="docs/media/clip-chatA.gif" width="96"><br>Idle neighbours chat | <img src="docs/media/clip-poke.gif" width="96"><br>Clicked |
 
 That's not all: the app has more animations than these, and the [settings page](#settings) shows every one of them.
 
@@ -40,9 +40,17 @@ Every session of the same project shares a colour, each in its own size. The ima
 
 ## How it works
 ```
-machine with Claude Code                                         Mac
-Claude Code ─hooks──► claudie-daemon ─events (127.0.0.1:47321)─► Claudie.app
-            ─transcript files───┘
+ Claude Code machine                          Client
+┌──────────────────────────────────┐      ┌───────────────┐
+│                                  │      │               │
+│  Claude Code ──hooks─┐           │      │               │
+│                      ▼           │      │               │
+│                claudie-daemon ───┼─────►│  Claudie.app  │
+│                      ▲           │      │               │
+│  transcripts ────────┘           │      │               │
+│                                  │      │               │
+└──────────────────────────────────┘      └───────────────┘
+                                   events, 127.0.0.1:47321
 ```
 - **Hooks.** Claude Code reports every event to the daemon through its hooks.
 - **The daemon** works out what every session is doing. Denied permissions and Esc leave no hook, so it also reads each session's transcript; that is also where it learns how full the context is. It checks that each session's process is still alive, and keeps the sessions across restarts.
@@ -59,8 +67,21 @@ Claude Code ─hooks──► claudie-daemon ─events (127.0.0.1:47321)─► C
 
 The daemon, the app and the settings page run the same TypeScript, so the logic lives in one place and is tested once.
 
+## Why these technologies
+- **Go:** one daemon for all systems, a single static binary per platform with nothing else to install.
+- **TypeScript:** one simple engine for the scene: the logic is written once and runs in Node, in the daemon, in the app and in the browser.
+- **Swift:** a native frontend for macOS.
+- **Angular:** the settings page.
+
+## Resource use
+Claudie is idle most of the time, and what it does is light.
+- **Daemon.** One static Go binary with nothing else to install. With two sessions open (one working, one idle) it held about 24 MB of memory and used about 1 s of CPU in 15 minutes, around 0.1% of one core. It wakes for hook events, reads the new lines of each session's transcript every 0.4 s, checks every 5 s that the sessions' processes are alive, and saves the sessions to disk within a second of a change.
+- **App.** At rest the scene ticks 20 times a second; it follows the display's refresh rate only while something moves. It also listens to mouse moves to know when the pointer is over a Clawd.
+- **Claude Code.** Hooks are small HTTP posts to `127.0.0.1`; the SessionStart script runs `curl` once per session.
+- **Network.** Everything stays on `127.0.0.1`; the only download is the daemon, once, from this repository's releases.
+
 ## Install and run
-**You need:** Claude Code on macOS or Linux, and a Mac with macOS 14 or later for the app.
+**You need:** Claude Code on macOS or Linux; the app currently needs macOS 14 or later.
 
 1. **Install the plugin** in Claude Code:
    ```
@@ -68,7 +89,9 @@ The daemon, the app and the settings page run the same TypeScript, so the logic 
    /plugin install claudie@claudie
    ```
    That is the whole setup on the Claude Code side. The first session started after it downloads the daemon for your platform from this repository's releases, checks its checksum, and starts it in the background; later sessions find it running.
-2. **Build and start the app** on the Mac. It needs the Xcode Command Line Tools (`xcode-select --install`), and [Node.js](https://nodejs.org) 25 with [pnpm](https://pnpm.io) to build the scene it runs:
+2. **Install the app** on the client: download `Claudie-macos.zip` from the [latest release](https://github.com/farnsworth3010/claudie/releases/latest), unzip it, move `Claudie.app` to Applications and open it. The app is not notarized, so macOS blocks the first start; clear the mark once with `xattr -d com.apple.quarantine /Applications/Claudie.app`.
+
+   **To build it from source** instead you need the Xcode Command Line Tools (`xcode-select --install`), and [Node.js](https://nodejs.org) 25 with [pnpm](https://pnpm.io) to build the scene it runs:
    ```sh
    git clone https://github.com/farnsworth3010/claudie.git && cd claudie
    pnpm install && pnpm build
@@ -81,15 +104,24 @@ The daemon logs to `~/.local/state/claudie/daemon.log`. To run it from source in
 **Updating:** `claude plugin update claudie@claudie`, or `/plugin` in a session. The next session starts the new daemon in place of the old one by itself.
 
 ### Demo
-`tools/demo.sh` shows the mascots without real sessions: it sends made-up sessions in every state to the daemon (a typist, a crew of subagents, a permission and a question waiting, a fever from a full context, plan mode, a commit) and keeps them busy until you press Ctrl+C, which removes them. Everything runs on the Mac, from the clone, with [Go](https://go.dev) 1.27 on top of what the app needs:
+`tools/demo.sh` shows the mascots without real sessions: it sends made-up sessions in every state to the daemon (a typist, a crew of subagents, a permission and a question waiting, a fever from a full context, plan mode, a commit) and keeps them busy until you press Ctrl+C, which removes them. It only needs a daemon answering at `127.0.0.1:47321`, and the Clawds show on the [settings page](#settings) in a browser (the live preview) or, on a Mac, in the app.
+
+**With the plugin installed** the daemon is already running; from a clone of the repository, run the script and open [http://127.0.0.1:47321/](http://127.0.0.1:47321/):
+```sh
+./tools/demo.sh
+```
+**Without the plugin**, build and start the daemon from the clone first, with [Go](https://go.dev) 1.27 and Node.js:
 ```sh
 pnpm install && pnpm build
 (cd backend/daemon && go build -o bin/claudie-daemon ./src)
 backend/daemon/bin/claudie-daemon start   # the daemon, in the background
-(cd frontends/macos && swift run)         # the app; leave it running, go on in a second terminal
 ./tools/demo.sh
 ```
-If the daemon is already running (the plugin started it, or you forwarded its port), skip the Go step and the daemon: `./tools/demo.sh` only needs to reach `127.0.0.1:47321`. Afterwards stop the daemon you started with `curl -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:47321/quit`.
+**To see the Clawds over the windows**, start the app on the Mac before the script ([installed](#install-and-run), or built from the clone as below), and run the script in a second terminal:
+```sh
+(cd frontends/macos && swift run)         # the app; leave it running
+```
+Afterwards stop the daemon you started with `curl -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:47321/quit`.
 
 The [settings page](#settings) has a simulator too: buttons that start made-up sessions and walk them through every state one step at a time.
 
@@ -124,11 +156,6 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 | `gravity` | false | A group let go of falls to the bottom of its screen and stands there |
 | `wander` | false | Walks about on its own and crawls along the screen's edges, turned to stand on them; with gravity, along the bottom only. It stays put while a session waits for you. Without gravity, dragged up to an edge it clings to it, turned, and crawls on from where you let go |
 
-Or change one from a terminal:
-```sh
-curl -X POST -H 'content-type: application/json' -d '{"opacity":0.8}' http://127.0.0.1:47321/settings
-```
-
 ## Uninstall
 1. **Remove the plugin** in Claude Code; this also deletes the daemon binary it downloaded:
    ```
@@ -143,7 +170,7 @@ curl -X POST -H 'content-type: application/json' -d '{"opacity":0.8}' http://127
    ```sh
    rm -rf ~/.local/state/claudie ~/.config/claudie
    ```
-4. **On the Mac**, stop the app (Ctrl+C where `swift run` runs), forget its saved position with `defaults delete Claudie`, and delete the clone.
+4. **On the Mac**, quit the app, forget its saved position with `defaults delete Claudie`, and delete `Claudie.app` (or the clone, if you built it from source).
 
 ## Plans
 - **Notice a stop before the first word.** Esc or Ctrl+C while Claude is still thinking, before it has written anything, leaves no trace: Claude Code sends no hook and writes nothing to the transcript, so the Clawd keeps thinking until the next prompt (or Claude Code's idle notification about a minute later). A stop after the reply has begun is caught already. This waits for Claude Code to report interruptions.
