@@ -199,7 +199,21 @@ backend/daemon/bin/claudie-daemon start   # демон, в фоне
 - **Замечать остановку до первого слова.** Esc или Ctrl+C, пока Claude ещё думает и ничего не написал, не оставляют следа: Claude Code не шлёт хук и ничего не пишет в транскрипт, поэтому Клод продолжает «думать» до следующего сообщения (или до уведомления о простое от Claude Code примерно через минуту). Остановку после начала ответа Клод уже замечает. Ждём, пока Claude Code начнёт сообщать о прерываниях.
 
 ## Разработка
-`pnpm check` запускает всё: линтер и форматтер Biome, проверку типов TypeScript, тесты TypeScript, сборку, затем `gofmt`, `go vet`, тесты Go и `govulncheck`. Сообщения коммитов следуют Conventional Commits, их проверяет commitlint. Релиз — это тег `vX.Y.Z`, совпадающий с `version` в `backend/plugin/.claude-plugin/plugin.json`: CI собирает демон под все платформы и публикует его. Структура проекта и правила кода — в [CLAUDE.md](CLAUDE.md).
+`pnpm check` запускает всё: линтер и форматтер Biome, проверку типов TypeScript, тесты TypeScript, сборку, затем `gofmt`, `go vet`, тесты Go и `govulncheck`. Сообщения коммитов следуют Conventional Commits, их проверяет commitlint. Структура проекта и правила кода — в [CLAUDE.md](CLAUDE.md).
+
+### Выпуск релиза
+Релиз — это тег `vX.Y.Z`, совпадающий с `version` в `backend/plugin/.claude-plugin/plugin.json`: хук плагина качает демон из релиза с этим тегом, а CI не принимает тег, который отличается.
+
+1. **Поднять версию** в `backend/plugin/.claude-plugin/plugin.json` (например, `0.1.0` до `0.1.1`) и закоммитить (`chore: release 0.1.1`).
+2. **Влить в `main`**: плагин ставится из ветки по умолчанию.
+3. **Поставить тег и запушить:**
+   ```sh
+   git tag v0.1.1 && git push origin v0.1.1
+   ```
+   CI запускает `pnpm check`, собирает демон под все платформы вместе с `SHA256SUMS`, собирает приложение для Mac и публикует релиз со всеми файлами.
+4. **Проверить релиз:** в нём должны быть `claudie-daemon-<os>-<arch>` для `linux` и `darwin` на `amd64` и `arm64`, `SHA256SUMS` и `Claudie-macos.zip`. Имена файлов фиксированы: на них опираются хук и инструкции по установке.
+
+**Если CI недоступен**, то же самое делается вручную: собрать демоны командой `tools/build-daemons.sh`, собрать приложение на Mac (`pnpm build && tools/build-macos-app.sh`), затем создать на GitHub релиз для этого тега и приложить `backend/daemon/bin/release/*` и `frontends/macos/.build/app/Claudie-macos.zip`.
 
 ## Как здесь используется ИИ
 Claudie делается вместе с Claude Code, агентом для программирования от Anthropic. Порядок работы записан в [CLAUDE.md](CLAUDE.md); агент читает его в начале каждой сессии.

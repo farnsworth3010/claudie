@@ -199,7 +199,21 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 - **Notice a stop before the first word.** Esc or Ctrl+C while Claude is still thinking, before it has written anything, leaves no trace: Claude Code sends no hook and writes nothing to the transcript, so the Clawd keeps thinking until the next prompt (or Claude Code's idle notification about a minute later). A stop after the reply has begun is caught already. This waits for Claude Code to report interruptions.
 
 ## Development
-`pnpm check` runs everything: Biome lint and format, TypeScript typecheck, the TypeScript tests, the build, then `gofmt`, `go vet`, the Go tests and `govulncheck`. Commit messages follow Conventional Commits, checked by commitlint. A release is a tag `vX.Y.Z` matching `version` in `backend/plugin/.claude-plugin/plugin.json`: CI builds the daemon for every platform and publishes it. See [CLAUDE.md](CLAUDE.md) for the layout and the rules the code follows.
+`pnpm check` runs everything: Biome lint and format, TypeScript typecheck, the TypeScript tests, the build, then `gofmt`, `go vet`, the Go tests and `govulncheck`. Commit messages follow Conventional Commits, checked by commitlint. See [CLAUDE.md](CLAUDE.md) for the layout and the rules the code follows.
+
+### Releasing
+A release is a tag `vX.Y.Z` that matches `version` in `backend/plugin/.claude-plugin/plugin.json`: the plugin's hook downloads the daemon from the release of that tag, and CI refuses a tag that differs.
+
+1. **Bump the version** in `backend/plugin/.claude-plugin/plugin.json` (for example `0.1.0` to `0.1.1`) and commit it (`chore: release 0.1.1`).
+2. **Merge into `main`**: users install the plugin from the default branch.
+3. **Tag and push:**
+   ```sh
+   git tag v0.1.1 && git push origin v0.1.1
+   ```
+   CI runs `pnpm check`, builds the daemon for every platform with `SHA256SUMS`, builds the Mac app, and publishes a release with all of them.
+4. **Check the release:** it must hold `claudie-daemon-<os>-<arch>` for `linux` and `darwin` on `amd64` and `arm64`, `SHA256SUMS` and `Claudie-macos.zip`. The file names are fixed: the hook and the install instructions rely on them.
+
+**If CI is not available**, do the same by hand: build the daemons with `tools/build-daemons.sh`, build the app on a Mac with `pnpm build && tools/build-macos-app.sh`, then create the release for the tag on GitHub and attach `backend/daemon/bin/release/*` and `frontends/macos/.build/app/Claudie-macos.zip`.
 
 ## How AI is used here
 Claudie is built together with Claude Code, Anthropic's coding agent, and the way of working is written down in [CLAUDE.md](CLAUDE.md), which the agent reads at the start of every session.
