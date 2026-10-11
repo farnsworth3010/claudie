@@ -1,6 +1,7 @@
 {
   "name": "@claudie/core",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=25"
