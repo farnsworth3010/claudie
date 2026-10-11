@@ -182,7 +182,7 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 Claudie is built together with Claude Code, Anthropic's coding agent, and the way of working is written down in [CLAUDE.md](CLAUDE.md), which the agent reads at the start of every session.
 - **The maintainer decides; the agent writes and explains.** Architecture, languages, the state model and every trade-off are the maintainer's calls. The agent writes most of the code in small steps, explains each file and decision, and waits for approval before the next one.
 - **Facts come from experiments, not guesses.** How Claude Code really reports permissions, Esc, subagents and compaction was established by driving real sessions and recording their events; the state logic is tested against those recordings.
-- **Parallel agents, separate review.** Independent parts (animations, the Go daemon, the Swift app) are often written by parallel subagents against agreed interfaces, and a separate reviewer agent hunts for bugs before anything is called done. Ported animations are checked pixel for pixel, a million frames at a time.
+- **Parallel agents, separate review.** Independent parts (animations, the Go daemon, the Swift app) are often written by parallel subagents against agreed interfaces, and a separate reviewer agent hunts for bugs before anything is called done.
 - **Humans close the loop.** The agent works on Linux, so the maintainer builds and runs the Swift app on a Mac and reports back; every commit is made by the maintainer.
 
 ## License
