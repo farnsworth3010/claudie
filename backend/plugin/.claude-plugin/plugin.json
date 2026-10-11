@@ -1,7 +1,7 @@
 {
   "name": "claudie",
   "version": "0.1.0",
-  "description": "Pixel-art Clawds on your Mac's screen showing what every Claude Code session is doing",
+  "description": "Pixel-art Clawds over your windows showing what every Claude Code session is doing",
   "author": { "name": "Rostislav Danchenko" },
   "repository": "https://github.com/farnsworth3010/claudie",
   "keywords": ["mascot", "overlay", "macos", "status"]

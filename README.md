@@ -103,6 +103,29 @@ The daemon logs to `~/.local/state/claudie/daemon.log`. To run it from source in
 
 **Updating:** `claude plugin update claudie@claudie`, or `/plugin` in a session. The next session starts the new daemon in place of the old one by itself.
 
+### Installing without a release
+If the release with the daemon is not available, build the daemon from source on the machine where Claude Code runs. You need Git, [Node.js](https://nodejs.org) 25, [pnpm](https://pnpm.io) and [Go](https://go.dev) 1.27.
+
+1. **Build the daemon:**
+   ```sh
+   git clone https://github.com/farnsworth3010/claudie.git && cd claudie
+   pnpm install && pnpm build
+   (cd backend/daemon && go build -o bin/claudie-daemon ./src)
+   ```
+2. **Tell Claude Code where the daemon is**, for example in your shell profile (`~/.zshrc`, `~/.bashrc`):
+   ```sh
+   export CLAUDIE_DAEMON="$HOME/claudie/backend/daemon/bin/claudie-daemon"
+   ```
+   The plugin's hook then starts this binary at the start of every session and downloads nothing. Without the variable, start the daemon by hand with `backend/daemon/bin/claudie-daemon start`, and again after every reboot.
+3. **Install the plugin** in Claude Code as usual:
+   ```
+   /plugin marketplace add farnsworth3010/claudie
+   /plugin install claudie@claudie
+   ```
+4. **Install the app** on the client (step 2 above) and open it.
+
+**Updating:** `git pull`, build again (`pnpm build` and `go build`), then stop the daemon with `curl -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:47321/quit`: a daemon built from source is never replaced by itself. The next session starts the new one.
+
 ### Demo
 `tools/demo.sh` shows the mascots without real sessions: it sends made-up sessions in every state to the daemon (a typist, a crew of subagents, a permission and a question waiting, a fever from a full context, plan mode, a commit) and keeps them busy until you press Ctrl+C, which removes them. It only needs a daemon answering at `127.0.0.1:47321`, and the Clawds show on the [settings page](#settings) in a browser (the live preview) or, on a Mac, in the app.
 
