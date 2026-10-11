@@ -97,7 +97,7 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
   },
   writer: {
     body: '#eadbc0',
-    acc: ['#2f2f3a', '#f5c542'],
+    acc: ['#8a3a4a', '#f5c542'],
     accessory: [
       // beret with a pencil behind the ear
       [-4, '.......o.......o'],
