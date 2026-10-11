@@ -6,3 +6,4 @@ backend/daemon/internal/web/dist/
 frontends/macos/.build/
 frontends/macos/src/Resources/scene.js
 frontends/macos/.swiftpm/
+frontends/web/.angular/
