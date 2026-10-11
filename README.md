@@ -184,3 +184,6 @@ Claudie is built together with Claude Code, Anthropic's coding agent, and the wa
 - **Facts come from experiments, not guesses.** How Claude Code really reports permissions, Esc, subagents and compaction was established by driving real sessions and recording their events; the state logic is tested against those recordings.
 - **Parallel agents, separate review.** Independent parts (animations, the Go daemon, the Swift app) are often written by parallel subagents against agreed interfaces, and a separate reviewer agent hunts for bugs before anything is called done. Ported animations are checked pixel for pixel, a million frames at a time.
 - **Humans close the loop.** The agent works on Linux, so the maintainer builds and runs the Swift app on a Mac and reports back; every commit is made by the maintainer.
+
+## License
+[MIT](LICENSE). The license covers the code only: Claude and Clawd, the mascot the sprites show, belong to Anthropic.
