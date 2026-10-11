@@ -1,6 +1,6 @@
 # Claudie
 
-Pixel-art Clawd mascots over every window on a Mac, one per running Claude Code session, showing what each session is doing: working (and with which tool), waiting for permission, asking a question, done, idle.
+Pixel-art Clawd mascots over every window, one per running Claude Code session, showing what each session is doing: working (and with which tool), waiting for permission, asking a question, done, idle. Claudie is cross-platform by design: the daemon, the core and the plugin run wherever Claude Code does, and the overlay is a thin client per OS (macOS is the first).
 
 The maintainer wants to understand and control every part of it, so the way of working below matters as much as the code.
 
@@ -9,26 +9,26 @@ The maintainer wants to understand and control every part of it, so the way of w
 - Deliver exactly what was asked. Propose anything else in one sentence and wait.
 - Never commit, push or touch git history: the maintainer commits. Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`), checked by commitlint; never add AI attribution.
 - Comments: short, one line where possible, only the non-obvious *why*; never narrate edit history.
-- If you cannot build or run the Swift app where you are, say so: the maintainer builds it and reports errors. Keep Swift changes small and explained.
+- If you cannot build or run a client app (the Swift one today) where you are, say so: the maintainer builds it and reports errors. Keep client changes small and explained.
 
 ## Architecture
 ```
-server (where Claude Code runs)                                      Mac
-Claude Code ─http hooks─────────────────────► daemon ─SSE /events─► Claudie.app
+machine (where Claude Code runs)                                  client
+Claude Code ─http hooks─────────────────────► daemon ─SSE /events─► overlay app
             ─SessionStart: claudie-session-start.sh (curl + pid) ─┘   127.0.0.1:47321
 ```
 - Claude Code posts every event to the daemon with `http` hooks; only SessionStart, which can't be an http hook, goes through a script, which also tells the daemon the session's pid. The script downloads the daemon for its platform from the plugin version's GitHub release once (checked against SHA256SUMS, kept in `${CLAUDE_PLUGIN_DATA}`) and runs `claudie-daemon start`, which starts it detached when nothing answers and replaces a running release of another version (`GET /version`, `POST /quit`); so installing or updating the plugin is the whole server setup. The daemon drops an event that arrives twice within 2 s, which is what doubled hooks send.
 - Denied permissions and Esc send no hook at all; the daemon learns them, and how full the context is, by tailing the session's transcript.
 - The daemon holds the only truth about sessions and streams full snapshots `{now, sessions, settings}`. It checks every few seconds that each session's process still runs, keeps the sessions in `$XDG_STATE_HOME/claudie/sessions.json` across restarts and the overlay settings in `$XDG_CONFIG_HOME/claudie/settings.json`.
-- The Mac app runs the scene (`backend/core/src/scene`) in JavaScriptCore: it feeds it snapshots, screens and the mouse, and draws the sprites it hands back. A right click on a Clawd opens the settings page.
+- The overlay app (`frontends/macos` for now) runs the scene (`backend/core/src/scene`) in its platform's JavaScript engine (JavaScriptCore on macOS): it feeds it snapshots, screens and the mouse, and draws the sprites it hands back. A right click on a Clawd opens the settings page.
 - The daemon serves the settings page at `/` (Angular, embedded in its binary): the settings, a live preview running the same scene on a canvas, a simulator that posts made-up hooks, and a gallery of every animation.
 
 | Language | Where | Role |
 |---|---|---|
 | POSIX sh | `backend/plugin/` | The SessionStart hook: send the event with `curl` and the pid. No `jq`, no GNU-only flags, no `/proc`. |
 | Go | `backend/daemon/` | A thin shell: HTTP, SSE, timers, files, process checks. Standard library plus goja; no domain logic. Ships as one static binary per platform. |
-| TypeScript | `backend/core/` | All the logic: the session reducer, the director, sprites, layout. Runs in Node for tests, in goja inside the daemon, in JavaScriptCore inside the app. |
-| Swift | `frontends/macos/` | Windows above everything, click-through, drawing with Core Animation, the mouse, the SSE client. |
+| TypeScript | `backend/core/` | All the logic: the session reducer, the director, sprites, layout. Runs in Node for tests, in goja inside the daemon, in the client's engine (JavaScriptCore in the macOS app). |
+| Swift | `frontends/macos/` | The macOS client: windows above everything, click-through, drawing with Core Animation, the mouse, the SSE client. |
 | TypeScript, Angular | `frontends/web/` | The settings page: forms, the preview and gallery canvases, the simulator. All drawing and logic come from `backend/core`. |
 
 Parts talk JSON: hook → daemon (the Claude Code event), daemon → app (snapshots), Go ↔ TS and Swift ↔ TS (JSON strings across the bridge).
@@ -44,9 +44,10 @@ Source code lives in each part's `src/`.
 - `backend/daemon/`: Go module `claudie/daemon`. `src/main.go` is a thin `package main` that wires the packages in `internal/` (`config`, `core` the goja bridge, `server` HTTP and SSE, `web` the embedded settings page, `hub` snapshot fan-out, `watch` timers and the transcript tailer, `store` files, `proc` process checks, `eventlog`); an interface lives in the package that uses it. All tests are in `test/`, one folder per package, as black-box tests of its exported API, so there are no `_test.go` files next to the code. `bin/` holds built binaries (gitignored).
 - `backend/plugin/`: the Claude Code plugin: `.claude-plugin/plugin.json` (its `version` and `repository` are what the hook downloads), `hooks/hooks.json`, `bin/claudie-session-start.sh`. `.claude-plugin/marketplace.json` at the repository root lists it.
 - `frontends/web/`: Angular 22 app (standalone components, signals, no zone.js), package `@claudie/web`. `src/app/` by feature: `daemon/` (the service that follows `/events` and posts settings and hooks), `preview/`, `settings/`, `simulator/`, `gallery/`, `shared/` (the frame loop, canvas painting); constants and types in their own files as in core. It imports core as `@claudie/core/<path>.ts` (core's `exports`), and its own files with `.ts` too, as core does, so `node:test` can load the pure ones. Angular pins TypeScript to 6.0, so this package has its own `typescript`; core keeps 7. Pure logic is tested with `node:test` in `test/`. `pnpm build` builds it into `backend/daemon/internal/web/dist/` (gitignored), which the daemon embeds.
-- `frontends/macos/`: Swift package, code in `src/` by layer: `App/` (entry point, wiring), `Daemon/` (SSE client, HTTP), `Scene/` (the JavaScriptCore engine, its models, coordinates), `Overlay/` (the panel, drawing, input), `Support/` (constants, logging). It needs `scene.js`, so run `pnpm build` before `swift run`.
+- `frontends/macos/`: the macOS client, a Swift package, code in `src/` by layer: `App/` (entry point, wiring), `Daemon/` (SSE client, HTTP), `Scene/` (the JavaScriptCore engine, its models, coordinates), `Overlay/` (the panel, drawing, input), `Support/` (constants, logging). It needs `scene.js`, so run `pnpm build` before `swift run`.
 - `tools/demo.sh`: made-up sessions in every state, sent to a running daemon; Ctrl+C ends them.
 - `docs/media/`: the README's images and GIFs, rendered from the scene code by `backend/core/tools/media/` (`pnpm media`, needs ImageMagick); re-render after changing animations.
+- `tools/build-macos-app.sh`: the macOS app as `Claudie.app` in a zip (needs a Mac and `pnpm build` first); the release workflow attaches it to the release.
 - `tools/build-daemons.sh`: the daemon for every platform plus SHA256SUMS in `backend/daemon/bin/release/`. `.github/workflows/release.yml` runs it on a `vX.Y.Z` tag, which must match the plugin's version, and publishes the release.
 - `.githooks/commit-msg`: runs commitlint; `pnpm install` points `core.hooksPath` at `.githooks`.
 
@@ -78,6 +79,6 @@ go build -o bin/claudie-daemon ./src
 ```
 
 ## Requirements that shape decisions
-- Installing must be trivial: on the server only `/plugin install`, nothing else to set up (no Node, no `jq`, no systemd).
-- macOS is the only overlay; the settings page is for settings and showing off, not a second overlay. No zellij or terminal integration for now.
+- Installing must be trivial: on the machine with Claude Code only `/plugin install`, nothing else to set up (no Node, no `jq`, no systemd).
+- Keep platform-specific code inside its client; the daemon, the core and the plugin stay portable across the systems Claude Code runs on. The overlay exists for macOS only so far, and the settings page is for settings and showing off, not a second overlay.
 - Http hooks arrive in order, but parallel tool calls and transcript lines can still interleave; the reducer must cope, and tests prove it.
