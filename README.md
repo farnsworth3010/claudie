@@ -89,7 +89,7 @@ Claudie is idle most of the time, and what it does is light.
    /plugin install claudie@claudie
    ```
    That is the whole setup on the Claude Code side. The first session started after it downloads the daemon for your platform from this repository's releases, checks its checksum, and starts it in the background; later sessions find it running.
-2. **Install the app** on the client: download `Claudie-macos.zip` from the [latest release](https://github.com/farnsworth3010/claudie/releases/latest), unzip it, move `Claudie.app` to Applications and open it. The app is not notarized, so macOS blocks the first start; clear the mark once with `xattr -d com.apple.quarantine /Applications/Claudie.app`.
+2. **Install the app** on the client: download `Claudie-macos.zip` from the [latest release](https://github.com/farnsworth3010/claudie/releases/latest), unzip it, move `Claudie.app` to Applications and open it. The app is not notarized, so macOS blocks the first start: open System Settings, go to Privacy & Security, scroll down to the message about Claudie and click Open Anyway. Or clear the mark from a terminal with `xattr -d com.apple.quarantine /Applications/Claudie.app`.
 
    **To build it from source** instead you need the Xcode Command Line Tools (`xcode-select --install`), and [Node.js](https://nodejs.org) 25 with [pnpm](https://pnpm.io) to build the scene it runs:
    ```sh
