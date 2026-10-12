@@ -7,6 +7,10 @@ enum Config {
   static let anchorDefaultsKey = "anchor"
 
   static let slowTickInterval: TimeInterval = 0.05
+  // Lets macOS fold the slow timer's wake-ups in with others.
+  static let slowTickTolerance: TimeInterval = 0.01
+  // Slow ticks with nothing to show before the timer stops; the next snapshot starts it again.
+  static let idleTicks = 20
   // How long the display link may stay silent before the slow timer ticks again.
   static let displayLinkStallThreshold: CFTimeInterval = 0.1
 

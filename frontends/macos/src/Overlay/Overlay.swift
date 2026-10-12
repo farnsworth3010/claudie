@@ -16,17 +16,22 @@ final class Overlay: NSObject, InputDelegate {
   private let tooltip = TooltipLayer()
   private var spriteLayers: [CALayer] = []
   private var link: CADisplayLink?
+  private var timer: Timer?
+  private var emptyTicks = 0
   private var fast = false
   private var lastTick: CFTimeInterval = 0
   private var dragging = false
   private var clickThrough = false
   private var edges = ScreenEdges(overDock: true, overMenuBar: false)
   private var monitors: [Any] = []
+  private var space: SceneSpace
+  private var needsRender = true  // the screens changed: the same view lands somewhere else
 
   init(engine: Engine, perform: @escaping (Action) -> Void, openSettings: @escaping () -> Void) {
     self.engine = engine
     self.perform = perform
     self.openSettings = openSettings
+    self.space = SceneSpace.current()
     super.init()
 
     input.delegate = self
@@ -43,16 +48,29 @@ final class Overlay: NSObject, InputDelegate {
     installMouseMonitors()
   }
 
+  // Also what a snapshot or an input event calls, which starts a stopped timer again.
   func tick() {
+    if timer == nil { startTimer() }
     lastTick = CACurrentMediaTime()
     // A release swallowed elsewhere (Mission Control, a screen lock) must not leave the panel
     // holding the mouse.
     if dragging && NSEvent.pressedMouseButtons & 1 == 0 { pointerUp() }
-    guard let view = engine.tick(pointer()) else { return }
+    let point = pointer()
+    guard let ticked = engine.tick(point) else { return }
     for action in engine.takeActions() { perform(action) }
-    render(view)
-    setFast(view.fast)
-    updateMouse()
+    if ticked.changed || needsRender {
+      needsRender = false
+      render(ticked.view)
+    }
+    setFast(ticked.view.fast)
+    updateMouse(at: point)
+    let empty = ticked.view.sprites.isEmpty && !ticked.view.fast && !dragging
+    emptyTicks = empty ? emptyTicks + 1 : 0
+    if emptyTicks >= Config.idleTicks {
+      timer?.invalidate()
+      timer = nil
+      emptyTicks = 0
+    }
   }
 
   func pointerDown() {
@@ -89,30 +107,40 @@ final class Overlay: NSObject, InputDelegate {
 
   // Click-through lets the mouse past the Clawds unless ⌥ Option is held; a drag keeps it to the end.
   func updateMouse() {
+    updateMouse(at: pointer())
+  }
+
+  private func updateMouse(at pointer: CGPoint) {
     let reachable = !clickThrough || NSEvent.modifierFlags.contains(.option)
-    let take = dragging || (reachable && engine.hit(pointer()))
+    let take = dragging || (reachable && engine.hit(pointer))
     if panel.ignoresMouseEvents == take { panel.ignoresMouseEvents = !take }
   }
 
   private func pointer() -> CGPoint {
-    SceneSpace.current().pointer()
+    space.pointer()
   }
 
   // At rest a slow timer; while anything moves, the display's refresh (see setFast). The timer
   // still steps in when the refresh stalls: the link follows the screen the panel is on, which a
   // fullscreen app or a sleeping display takes off screen.
   private func startTicking() {
+    if timer == nil { startTimer() }  // the first rebuild's tick may have started it already
+    let link = input.displayLink(target: self, selector: #selector(refresh(_:)))
+    link.isPaused = true
+    link.add(to: .main, forMode: .common)
+    self.link = link
+  }
+
+  private func startTimer() {
     let timer = Timer(timeInterval: Config.slowTickInterval, repeats: true) { [weak self] _ in
       MainActor.assumeIsolated {
         guard let self else { return }
         if !self.fast || CACurrentMediaTime() - self.lastTick > Config.displayLinkStallThreshold { self.tick() }
       }
     }
+    timer.tolerance = Config.slowTickTolerance
     RunLoop.main.add(timer, forMode: .common)
-    let link = input.displayLink(target: self, selector: #selector(refresh(_:)))
-    link.isPaused = true
-    link.add(to: .main, forMode: .common)
-    self.link = link
+    self.timer = timer
   }
 
   // The panel must start taking the mouse as soon as the pointer comes over a Clawd.
@@ -128,7 +156,8 @@ final class Overlay: NSObject, InputDelegate {
   }
 
   private func rebuild() {
-    let space = SceneSpace.current()
+    space = SceneSpace.current()
+    needsRender = true
     engine.setScreens(NSScreen.screens.enumerated().map { index, screen -> SceneScreen in
       let area = edges.area(of: screen)
       let id = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.intValue ?? index
@@ -165,7 +194,6 @@ final class Overlay: NSObject, InputDelegate {
     tooltip.update(view.tooltip, scale: panel.backingScaleFactor)
 
     // The panel is the union of the sprites and the tooltip.
-    let space = SceneSpace.current()
     var box = view.sprites.reduce(CGRect.null) { $0.union($1.rect) }
     let tipRect = tooltip.sceneRect(within: view.tooltip.flatMap { space.screen(containing: CGPoint(x: $0.x, y: $0.y)) })
     if let tipRect { box = box.union(tipRect) }

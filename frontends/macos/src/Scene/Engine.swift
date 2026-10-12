@@ -9,6 +9,7 @@ final class Engine {
   private let api: JSValue
   private let decoder = JSONDecoder()
   private let encoder = JSONEncoder()
+  private var lastView: (json: String, view: SceneView)?
 
   init(script: String, anchor: String?) {
     context = JSContext()!
@@ -27,12 +28,17 @@ final class Engine {
     invoke("sync", [snapshot])
   }
 
-  func tick(_ pointer: CGPoint?) -> SceneView? {
+  // `changed` is false when the view is the same as last tick's, which at rest is most ticks: the
+  // JSON isn't decoded again.
+  func tick(_ pointer: CGPoint?) -> (view: SceneView, changed: Bool)? {
     let x = pointer.map { Double($0.x) } ?? .nan
     let y = pointer.map { Double($0.y) } ?? .nan
     let json = invoke("tick", [x, y])?.toString() ?? ""
+    if let last = lastView, last.json == json { return (last.view, false) }
     do {
-      return try decoder.decode(SceneView.self, from: Data(json.utf8))
+      let view = try decoder.decode(SceneView.self, from: Data(json.utf8))
+      lastView = (json, view)
+      return (view, true)
     } catch {
       log("bad view: \(error)")
       return nil

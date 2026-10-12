@@ -1,8 +1,8 @@
 import Foundation
 
 // Reads the daemon's server-sent events and hands the raw JSON of every snapshot on, on the main
-// queue. When the connection drops it reports no sessions and reconnects, waiting longer each
-// time, up to `Config.Reconnect.maxDelay`.
+// queue. When the connection drops it reports no sessions, once, and reconnects, waiting longer each
+// time, up to `Config.Reconnect.maxDelay`; failed attempts while the daemon is away stay quiet.
 final class EventStream: NSObject, URLSessionDataDelegate {
   private static let eventPrefix = "event: "
   private static let dataPrefix = "data: "
@@ -13,6 +13,7 @@ final class EventStream: NSObject, URLSessionDataDelegate {
   private lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
   private var buffer = Data()
   private var retryDelay = Config.Reconnect.initialDelay
+  private var connected = false
 
   init(url: URL, onSnapshot: @escaping (String) -> Void) {
     self.url = url
@@ -29,6 +30,7 @@ final class EventStream: NSObject, URLSessionDataDelegate {
   // Data arrives in arbitrary chunks; an event ends with a blank line.
   func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
     retryDelay = Config.Reconnect.initialDelay
+    connected = true
     buffer.append(data)
     let separator = Data("\n\n".utf8)
     while let end = buffer.range(of: separator) {
@@ -39,8 +41,11 @@ final class EventStream: NSObject, URLSessionDataDelegate {
   }
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    log("disconnected from \(url): \(error?.localizedDescription ?? "closed")")
-    onSnapshot("{\"now\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessions\":[]}")
+    if connected {
+      log("disconnected from \(url): \(error?.localizedDescription ?? "closed")")
+      onSnapshot("{\"now\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessions\":[]}")
+    }
+    connected = false
     let delay = retryDelay
     retryDelay = min(retryDelay * 2, Config.Reconnect.maxDelay)
     DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.start() }

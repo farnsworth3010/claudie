@@ -1,13 +1,17 @@
 import AppKit
 
 // The scene's coordinates are global points, y growing downwards from the top of the first screen;
-// Cocoa's grow upwards from its bottom. The flip lives here.
+// Cocoa's grow upwards from its bottom. The flip lives here. A snapshot of the screens: asking
+// NSScreen on every tick is a round trip to the window server each time.
 @MainActor
 struct SceneSpace {
   let top: CGFloat
+  let screenFrames: [CGRect]  // in scene coordinates
 
   static func current() -> SceneSpace {
-    SceneSpace(top: NSScreen.screens.first?.frame.maxY ?? 0)
+    let top = NSScreen.screens.first?.frame.maxY ?? 0
+    let flip = SceneSpace(top: top, screenFrames: [])
+    return SceneSpace(top: top, screenFrames: NSScreen.screens.map { flip.toScene($0.frame) })
   }
 
   func toCocoa(_ rect: CGRect) -> CGRect { flipped(rect) }
@@ -15,7 +19,7 @@ struct SceneSpace {
 
   // The frame of the screen a scene point is on, in scene coordinates.
   func screen(containing point: CGPoint) -> CGRect? {
-    NSScreen.screens.map { toScene($0.frame) }.first { $0.contains(point) }
+    screenFrames.first { $0.contains(point) }
   }
 
   func pointer() -> CGPoint {
