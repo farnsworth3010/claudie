@@ -20,6 +20,8 @@ type Engine interface {
 	Snapshot(now time.Time) (string, error)
 	// Tick ages sessions and lets go of those whose process is gone; alive must not call the engine.
 	Tick(now time.Time, alive func(pid int) bool) (bool, error)
+	// Count is how many sessions there are; with none the timers rest.
+	Count() (int, error)
 	// Settings is the current settings as JSON.
 	Settings() (string, error)
 	// UpdateSettings applies a client's patch; ok is false when the patch is refused.
@@ -54,7 +56,7 @@ type Options struct {
 //	POST /quit      stop
 //	GET  /          the settings page and its files
 //
-// Its timers (liveness, transcripts) run while Serve does.
+// Its timers (liveness, transcripts) run while Serve does and there are sessions.
 type Server struct {
 	core         Engine
 	log          *eventlog.Log
@@ -70,6 +72,7 @@ type Server struct {
 	livenessEvery   time.Duration
 	transcriptEvery time.Duration
 	tailer          *watch.Tailer
+	wake            *watch.Waker // a hook may bring the first session
 
 	settingsMu sync.Mutex // one settings change at a time, file included
 	hub        *hub.Hub

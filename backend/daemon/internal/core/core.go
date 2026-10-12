@@ -70,6 +70,11 @@ func (c *Core) Transcripts() ([]TranscriptRef, error) {
 	return refs, nil
 }
 
+// Count is how many sessions there are.
+func (c *Core) Count() (int, error) {
+	return invoke(c, "count", asInt)
+}
+
 // Save is the sessions to keep across restarts, as JSON.
 func (c *Core) Save() (string, error) {
 	return invoke(c, "save", asString)

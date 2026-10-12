@@ -57,3 +57,16 @@ func TestUpdateSettingsRefusesBadPatches(t *testing.T) {
 		t.Errorf("good patch: %s, %v, %v", got, ok, err)
 	}
 }
+
+func TestCountIsTheNumberOfSessions(t *testing.T) {
+	c := newCore(t)
+	if n, err := c.Count(); err != nil || n != 0 {
+		t.Fatalf("count %d, %v; want 0", n, err)
+	}
+	if _, err := c.Hook([]byte(`{"received":1,"event":{"hook_event_name":"SessionStart","session_id":"s1"}}`)); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := c.Count(); err != nil || n != 1 {
+		t.Errorf("count %d, %v; want 1", n, err)
+	}
+}

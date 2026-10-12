@@ -19,6 +19,8 @@ const api = {
   // `alive` tells whether a process is still a running Claude Code.
   tick: (now: number, alive: (pid: number) => boolean): boolean => sessions.tick(now, alive),
   transcripts: (): string => JSON.stringify(sessions.transcripts()),
+  // With none, the daemon's timers rest.
+  count: (): number => sessions.list().length,
   snapshot: (now: number): string => JSON.stringify({ now, sessions: sessions.list(), settings } satisfies Snapshot),
   // The sessions to keep across restarts, and back.
   save: (): string => JSON.stringify(sessions.list()),

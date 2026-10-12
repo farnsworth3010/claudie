@@ -41,6 +41,7 @@ func (s *Server) hook(w http.ResponseWriter, r *http.Request) {
 	if changed {
 		s.changed()
 	}
+	s.wake.Wake()
 	// An empty 2xx is what Claude Code's http hooks read as "carry on".
 	w.WriteHeader(http.StatusNoContent)
 }

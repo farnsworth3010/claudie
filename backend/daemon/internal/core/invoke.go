@@ -10,6 +10,7 @@ import (
 var (
 	asBool    = goja.Value.ToBoolean
 	asString  = goja.Value.String
+	asInt     = func(v goja.Value) int { return int(v.ToInteger()) }
 	asNothing = func(goja.Value) struct{} { return struct{}{} }
 )
 

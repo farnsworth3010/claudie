@@ -34,6 +34,7 @@ func New(o Options) *Server {
 		livenessEvery:   cmp.Or(o.LivenessEvery, watch.LivenessEvery),
 		transcriptEvery: cmp.Or(o.TranscriptEvery, watch.TranscriptEvery),
 		tailer:          watch.NewTailer(o.Engine),
+		wake:            watch.NewWaker(),
 		hub:             hub.New(),
 	}
 	if o.Now != nil {
@@ -94,10 +95,17 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	return nil
 }
 
-// startTimers runs the liveness check and the transcript reader until ctx ends.
+// startTimers runs the liveness check and the transcript reader until ctx ends. With no sessions
+// both rest, so an idle daemon doesn't wake up at all; the next hook starts them.
 func (s *Server) startTimers(ctx context.Context) {
-	s.timers.Go(func() { watch.Every(ctx, s.livenessEvery, s.checkLiveness) })
-	s.timers.Go(func() { watch.Every(ctx, s.transcriptEvery, s.readTranscripts) })
+	s.timers.Go(func() { watch.EveryWhile(ctx, s.livenessEvery, s.checkLiveness, s.busy, s.wake) })
+	s.timers.Go(func() { watch.EveryWhile(ctx, s.transcriptEvery, s.readTranscripts, s.busy, s.wake) })
+}
+
+// busy tells whether there are sessions to watch; when the engine can't say, the timers keep going.
+func (s *Server) busy() bool {
+	n, err := s.core.Count()
+	return err != nil || n > 0
 }
 
 // finish stops the timers and writes the sessions, last of all so that nothing changes them after.
