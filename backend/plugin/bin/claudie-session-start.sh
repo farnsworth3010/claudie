@@ -6,7 +6,7 @@
 # First it makes sure the daemon of the plugin's version runs: it downloads the binary for this
 # platform from the plugin's GitHub release once, and `claudie-daemon start` starts it in the
 # background or replaces an older one. So installing or updating the plugin is all the setup there
-# is. It never fails the session: no daemon only means no mascot.
+# is. It never fails the session: no daemon only means no mascot and a warning.
 #   CLAUDIE_PORT          the daemon's port (47321)
 #   CLAUDIE_DAEMON        a daemon binary to use instead of the released one
 #   CLAUDIE_RELEASE_URL   where to download the binaries from instead of the plugin's release
@@ -62,7 +62,16 @@ daemon() {
   echo "$path"
 }
 
+# Shown to the user: plain stdout would go to Claude's context, stderr nowhere.
+warn() {
+  printf '{"systemMessage":"%s"}\n' "$1"
+}
+
 # `start` does nothing when this version already runs, and replaces a daemon of another one.
-bin=$(daemon) && CLAUDIE_PORT=$port "$bin" start > /dev/null 2>&1
+if bin=$(daemon); then
+  CLAUDIE_PORT=$port "$bin" start > /dev/null 2>&1
+else
+  warn "Claudie: could not download the daemon $(manifest_field version) for this machine, so no mascots. See $(manifest_field repository)#installing-without-a-release"
+fi
 send
 exit 0
