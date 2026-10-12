@@ -7,3 +7,4 @@ frontends/macos/.build/
 frontends/macos/src/Resources/scene.js
 frontends/macos/.swiftpm/
 frontends/web/.angular/
+frontends/gnome/dist/

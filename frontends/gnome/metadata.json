@@ -1,0 +1,7 @@
+{
+  "uuid": "claudie@farnsworth3010.github.io",
+  "name": "Claudie",
+  "description": "Pixel-art Clawds over your windows showing what every Claude Code session is doing. Needs the Claudie plugin for Claude Code, whose daemon this extension follows.",
+  "shell-version": ["50"],
+  "url": "https://github.com/farnsworth3010/claudie"
+}

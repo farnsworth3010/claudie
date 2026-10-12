@@ -1,6 +1,7 @@
 packages:
   - backend/core
   - frontends/web
+  - frontends/gnome
 
 # Supply chain: don't resolve versions younger than 7 days (minutes), fail instead of falling back.
 minimumReleaseAge: 10080

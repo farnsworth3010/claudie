@@ -1,5 +1,5 @@
 # A tag vX.Y.Z publishes a GitHub release with the daemon for every platform, which the plugin's
-# SessionStart hook downloads for its version, and with the Mac app built after it.
+# SessionStart hook downloads for its version, the GNOME extension, and the Mac app built after it.
 name: release
 
 # The tag trigger is off for now, releases are made by hand; a workflow needs some trigger to stay valid.
@@ -32,10 +32,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: tools/build-daemons.sh
+      - run: tools/build-gnome-extension.sh
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" backend/daemon/bin/release/* --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" backend/daemon/bin/release/* frontends/gnome/dist/Claudie-gnome.zip --title "$GITHUB_REF_NAME" --generate-notes
 
   app:
     needs: release

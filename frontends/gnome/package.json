@@ -1,0 +1,25 @@
+{
+  "name": "@claudie/gnome",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=25"
+  },
+  "scripts": {
+    "test": "node --test 'test/**/*.test.ts'",
+    "typecheck": "tsc && tsc -p tsconfig.test.json",
+    "build": "rm -rf dist && esbuild src/extension.ts --bundle --format=esm --target=firefox128 --external:gi://* --external:resource://* --outfile=dist/claudie@farnsworth3010.github.io/extension.js --log-level=warning && cp metadata.json stylesheet.css dist/claudie@farnsworth3010.github.io/"
+  },
+  "dependencies": {
+    "@claudie/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@girs/gjs": "4.9.0",
+    "@girs/gnome-shell": "50.0.4",
+    "@girs/soup-3.0": "4.9.0",
+    "@types/node": "25.9.9",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

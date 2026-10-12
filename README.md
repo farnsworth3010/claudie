@@ -55,6 +55,7 @@ Every session of the same project shares a colour, each in its own size. The ima
 - **Hooks.** Claude Code reports every event to the daemon through its hooks.
 - **The daemon** works out what every session is doing. Denied permissions and Esc leave no hook, so it also reads each session's transcript; that is also where it learns how full the context is. It checks that each session's process is still alive, and keeps the sessions across restarts.
 - **The Mac app** draws what the daemon says, in a transparent window above all others.
+- **The GNOME extension** does the same from inside GNOME Shell, the only place that may draw above every window under Wayland.
 - **The settings page** is served by the daemon itself, so it works the same from any computer that reaches it.
 
 | Part | Language | Where |
@@ -63,25 +64,27 @@ Every session of the same project shares a colour, each in its own size. The ima
 | Daemon | Go (runs the TypeScript in [goja](https://github.com/dop251/goja)) | `backend/daemon` |
 | Hook | POSIX sh | `backend/plugin` |
 | Mac app | Swift (runs the TypeScript in JavaScriptCore) | `frontends/macos` |
+| GNOME extension | TypeScript, bundled with the core and run by GNOME Shell's JavaScript | `frontends/gnome` |
 | Settings page | TypeScript, [Angular](https://angular.dev) | `frontends/web` |
 
-The daemon, the app and the settings page run the same TypeScript, so the logic lives in one place and is tested once.
+The daemon, the overlays and the settings page run the same TypeScript, so the logic lives in one place and is tested once.
 
 ## Why these technologies
 - **Go:** one daemon for all systems, a single static binary per platform with nothing else to install.
 - **TypeScript:** one simple engine for the scene: the logic is written once and runs in Node, in the daemon, in the app and in the browser.
 - **Swift:** a native frontend for macOS.
+- **GNOME Shell extension:** a frontend for GNOME; under Wayland only the shell itself may draw above every window.
 - **Angular:** the settings page.
 
 ## Resource use
 Claudie is idle most of the time, and what it does is light.
 - **Daemon.** One static Go binary with nothing else to install. With two sessions open (one working, one idle) it held about 24 MB of memory and used about 1 s of CPU in 15 minutes, around 0.1% of one core. It wakes for hook events, reads the new lines of each session's transcript every 0.4 s, checks every 5 s that the sessions' processes are alive, and saves the sessions to disk within a second of a change.
-- **App.** At rest the scene ticks 20 times a second; it follows the display's refresh rate only while something moves. It also listens to mouse moves to know when the pointer is over a Clawd.
+- **Overlay.** At rest the scene ticks 20 times a second; it follows the display's refresh rate only while something moves. To know when the pointer is over a Clawd, the Mac app listens to mouse moves and the GNOME extension reads the pointer on each tick.
 - **Claude Code.** Hooks are small HTTP posts to `127.0.0.1`; the SessionStart script runs `curl` once per session.
 - **Network.** Everything stays on `127.0.0.1`; the only download is the daemon, once, from this repository's releases.
 
 ## Install and run
-**You need:** Claude Code on macOS or Linux; the app currently needs macOS 14 or later.
+**You need:** Claude Code on macOS or Linux; the overlay runs on macOS 14 or later, or on GNOME Shell 50.
 
 1. **Install the plugin** in Claude Code:
    ```
@@ -89,7 +92,7 @@ Claudie is idle most of the time, and what it does is light.
    /plugin install claudie@claudie
    ```
    That is the whole setup on the Claude Code side. The first session started after it downloads the daemon for your platform from this repository's releases, checks its checksum, and starts it in the background; later sessions find it running.
-2. **Install the app** on the client: download `Claudie-macos.zip` from the [latest release](https://github.com/farnsworth3010/claudie/releases/latest), unzip it, move `Claudie.app` to Applications and open it. The app is not notarized, so macOS blocks the first start: open System Settings, go to Privacy & Security, scroll down to the message about Claudie and click Open Anyway. Or clear the mark from a terminal with `xattr -d com.apple.quarantine /Applications/Claudie.app`.
+2. **On a Mac, install the app**: download `Claudie-macos.zip` from the [latest release](https://github.com/farnsworth3010/claudie/releases/latest), unzip it, move `Claudie.app` to Applications and open it. The app is not notarized, so macOS blocks the first start: open System Settings, go to Privacy & Security, scroll down to the message about Claudie and click Open Anyway. Or clear the mark from a terminal with `xattr -d com.apple.quarantine /Applications/Claudie.app`.
 
    **To build it from source** instead you need the Xcode Command Line Tools (`xcode-select --install`), and [Node.js](https://nodejs.org) 25 with [pnpm](https://pnpm.io) to build the scene it runs:
    ```sh
@@ -97,7 +100,15 @@ Claudie is idle most of the time, and what it does is light.
    pnpm install && pnpm build
    cd frontends/macos && swift run
    ```
-   If Claude Code runs on another machine, the app still talks to `127.0.0.1:47321` on the Mac: forward that port to the machine with the daemon, for example `ssh -L 47321:127.0.0.1:47321 <host>`.
+3. **On GNOME, install the extension**: download `Claudie-gnome.zip` from the [latest release](https://github.com/farnsworth3010/claudie/releases/latest) and run
+   ```sh
+   gnome-extensions install --force Claudie-gnome.zip
+   ```
+   Log out and back in (on Wayland, GNOME loads a new extension only at login), then turn it on with `gnome-extensions enable claudie@farnsworth3010.github.io` or in the Extensions app. From then on it starts by itself at every login. It needs GNOME Shell 50.
+
+   **To build it from source** you need [Node.js](https://nodejs.org) 25 with [pnpm](https://pnpm.io); `pnpm install && tools/build-gnome-extension.sh` in the clone writes `frontends/gnome/dist/Claudie-gnome.zip`, which installs the same way.
+
+If Claude Code runs on another machine, the overlay still talks to `127.0.0.1:47321` on its own computer: forward that port to the machine with the daemon, for example `ssh -L 47321:127.0.0.1:47321 <host>`.
 
 The daemon logs to `~/.local/state/claudie/daemon.log`. To run it from source instead, build it with `(cd backend/daemon && go build -o bin/claudie-daemon ./src)` (needs [Go](https://go.dev) 1.27 and `pnpm build` first) and start `backend/daemon/bin/claudie-daemon` before your sessions.
 
@@ -122,7 +133,7 @@ If the release with the daemon is not available, build the daemon from source on
    /plugin marketplace add farnsworth3010/claudie
    /plugin install claudie@claudie
    ```
-4. **Install the app** on the client (step 2 above) and open it.
+4. **Install the overlay** on the client (step 2 or 3 above).
 
 **Updating:** `git pull`, build again (`pnpm build` and `go build`), then stop the daemon with `curl -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:47321/quit`: a daemon built from source is never replaced by itself. The next session starts the new one.
 
@@ -164,9 +175,9 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 | `opacity` | 1 | 0.2 to 1 |
 | `pace` | 1 | How fast the animations play, 0.5 to 1.5 |
 | `overFullscreen` | false | Stay visible over full-screen apps |
-| `clickThrough` | false | Clicks go past the Clawds to what is under them; hold ⌥ Option to drag, poke or right-click them (macOS) |
-| `overDock` | true | The Clawds may stand on the Dock; off, they keep out of its area (macOS) |
-| `overMenuBar` | false | The Clawds may climb onto the menu bar (macOS) |
+| `clickThrough` | false | Clicks go past the Clawds to what is under them; hold ⌥ Option on a Mac, Alt on GNOME, to drag, poke or right-click them |
+| `overDock` | true | The Clawds may stand on the Dock; off, they keep out of its area (on GNOME: out of any dock or panel the work area leaves out) |
+| `overMenuBar` | false | The Clawds may climb onto the menu bar (the top bar on GNOME) |
 | `gaze` | true | Eyes follow the pointer |
 | `antics` | true | Clowning around when a dialog waits too long |
 | `neglect` | true | Cobwebs, a flower, snow and bones when idle for long |
@@ -189,11 +200,12 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
    ```sh
    curl -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:47321/quit
    ```
-3. **Delete its files** (sessions, log, settings):
+3. **Delete its files** (sessions, log, settings, the GNOME extension's saved position and sound):
    ```sh
-   rm -rf ~/.local/state/claudie ~/.config/claudie
+   rm -rf ~/.local/state/claudie ~/.config/claudie ~/.cache/claudie
    ```
 4. **On the Mac**, quit the app, forget its saved position with `defaults delete Claudie`, and delete `Claudie.app` (or the clone, if you built it from source).
+5. **On GNOME**, remove the extension with `gnome-extensions uninstall claudie@farnsworth3010.github.io`.
 
 ## Plans
 - **Notice a stop before the first word.** Esc or Ctrl+C while Claude is still thinking, before it has written anything, leaves no trace: Claude Code sends no hook and writes nothing to the transcript, so the Clawd keeps thinking until the next prompt (or Claude Code's idle notification about a minute later). A stop after the reply has begun is caught already. This waits for Claude Code to report interruptions.
@@ -210,10 +222,10 @@ A release is a tag `vX.Y.Z` that matches `version` in `backend/plugin/.claude-pl
    ```sh
    git tag v0.1.1 && git push origin v0.1.1
    ```
-   CI runs `pnpm check`, builds the daemon for every platform with `SHA256SUMS`, builds the Mac app, and publishes a release with all of them.
-4. **Check the release:** it must hold `claudie-daemon-<os>-<arch>` for `linux` and `darwin` on `amd64` and `arm64`, `SHA256SUMS` and `Claudie-macos.zip`. The file names are fixed: the hook and the install instructions rely on them.
+   CI runs `pnpm check`, builds the daemon for every platform with `SHA256SUMS`, builds the GNOME extension and the Mac app, and publishes a release with all of them.
+4. **Check the release:** it must hold `claudie-daemon-<os>-<arch>` for `linux` and `darwin` on `amd64` and `arm64`, `SHA256SUMS`, `Claudie-gnome.zip` and `Claudie-macos.zip`. The file names are fixed: the hook and the install instructions rely on them.
 
-**If CI is not available**, do the same by hand: build the daemons with `tools/build-daemons.sh`, build the app on a Mac with `pnpm build && tools/build-macos-app.sh`, then create the release for the tag on GitHub and attach `backend/daemon/bin/release/*` and `frontends/macos/.build/app/Claudie-macos.zip`.
+**If CI is not available**, do the same by hand: build the daemons with `tools/build-daemons.sh` and the GNOME extension with `tools/build-gnome-extension.sh`, build the app on a Mac with `pnpm build && tools/build-macos-app.sh`, then create the release for the tag on GitHub and attach `backend/daemon/bin/release/*`, `frontends/gnome/dist/Claudie-gnome.zip` and `frontends/macos/.build/app/Claudie-macos.zip`.
 
 ## How AI is used here
 Claudie is built together with Claude Code, Anthropic's coding agent, and the way of working is written down in [CLAUDE.md](CLAUDE.md), which the agent reads at the start of every session.
