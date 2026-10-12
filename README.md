@@ -78,8 +78,8 @@ The daemon, the overlays and the settings page run the same TypeScript, so the l
 
 ## Resource use
 Claudie is idle most of the time, and what it does is light.
-- **Daemon.** One static Go binary with nothing else to install. With two sessions open (one working, one idle) it held about 24 MB of memory and used about 1 s of CPU in 15 minutes, around 0.1% of one core. It wakes for hook events, reads the new lines of each session's transcript every 0.4 s, checks every 5 s that the sessions' processes are alive, and saves the sessions to disk within a second of a change.
-- **Overlay.** At rest the scene ticks 20 times a second; it follows the display's refresh rate only while something moves. To know when the pointer is over a Clawd, the Mac app listens to mouse moves and the GNOME extension reads the pointer on each tick.
+- **Daemon.** One static Go binary with nothing else to install. With two sessions open (one working, one idle) it held about 24 MB of memory and used about 1 s of CPU in 15 minutes, around 0.1% of one core. It wakes for hook events, reads the new lines of each session's transcript every 0.4 s, checks every 5 s that the sessions' processes are alive, and saves the sessions to disk within a second of a change. With no sessions both timers stop: it used no measurable CPU in a minute and woke about once a second, until the next hook.
+- **Overlay.** At rest the scene ticks 20 times a second; it follows the display's refresh rate only while something moves. To know when the pointer is over a Clawd, the Mac app listens to mouse moves and the GNOME extension reads the pointer on each tick. A tick that changes nothing redraws nothing, and with no Clawds on screen the timer stops until the daemon sends something new.
 - **Claude Code.** Hooks are small HTTP posts to `127.0.0.1`; the SessionStart script runs `curl` once per session.
 - **Network.** Everything stays on `127.0.0.1`; the only download is the daemon, once, from this repository's releases.
 
