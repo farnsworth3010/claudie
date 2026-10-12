@@ -6,13 +6,15 @@ import { SseParser } from '../lib/sse.ts';
 import { baseUrl } from './client.ts';
 
 // Follows the daemon's `/events` stream for as long as it lives, reconnecting with a backoff.
-// A lost connection is reported as a snapshot with no sessions, so the Clawds leave.
+// A lost connection is reported once as a snapshot with no sessions, so the Clawds leave; failed
+// attempts to reconnect report nothing more.
 export class EventStream {
   private readonly session: Soup.Session;
   private readonly onSnapshot: (json: string) => void;
   private cancellable = new Gio.Cancellable();
   private delay = RECONNECT_FIRST_MS;
   private retry = 0;
+  private connected = false;
 
   constructor(session: Soup.Session, onSnapshot: (json: string) => void) {
     this.session = session;
@@ -59,6 +61,7 @@ export class EventStream {
         return;
       }
       this.delay = RECONNECT_FIRST_MS;
+      this.connected = true;
       const event = parser.line(line.replace(/\r$/, ''));
       if (event?.event === 'state') this.onSnapshot(event.data);
       this.read(input, parser);
@@ -67,7 +70,8 @@ export class EventStream {
 
   private lost(): void {
     if (this.cancellable.is_cancelled()) return;
-    this.onSnapshot(JSON.stringify({ now: Date.now(), sessions: [] }));
+    if (this.connected) this.onSnapshot(JSON.stringify({ now: Date.now(), sessions: [] }));
+    this.connected = false;
     this.retry = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this.delay, () => {
       this.retry = 0;
       this.connect();

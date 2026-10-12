@@ -5,7 +5,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import type { Stage } from '@claudie/core/scene/stage/stage.ts';
 import type { Action, Rect, View } from '@claudie/core/scene/types.ts';
 import { openSettingsPage } from '../daemon/client.ts';
-import { FAST_TICK_MS, MARGIN, SLOW_TICK_MS } from '../lib/constants.ts';
+import { FAST_TICK_MS, IDLE_TICKS, MARGIN, SLOW_TICK_MS } from '../lib/constants.ts';
 import { union } from '../lib/screens.ts';
 import { placeTooltip } from '../lib/tooltip.ts';
 import { monitorAt, screens } from './screens.ts';
@@ -38,6 +38,8 @@ export class Overlay {
   private overFullscreen: boolean | null = null;
   private tooltipText = '';
   private tooltipSize = { width: 0, height: 0 };
+  private drawn = ''; // the last view rendered, as JSON: most ticks at rest change nothing
+  private emptyTicks = 0;
 
   constructor(stage: Stage, onAction: (action: Action) => void) {
     this.stage = stage;
@@ -70,14 +72,23 @@ export class Overlay {
     this.container.destroy();
   }
 
+  // Also what a snapshot or an input event calls, which wakes a stopped timer.
   tick(): void {
+    if (!this.timer) this.schedule();
     // No check of the button state here: the grab taken on press brings the release wherever it is.
     const [x, y, modifiers] = global.get_pointer();
     const view = this.stage.tick({ x, y });
     for (const action of this.stage.takeActions()) this.onAction(action);
-    this.render(view);
-    this.setFast(view.fast || this.dragging);
+    const json = JSON.stringify(view);
+    if (json !== this.drawn) {
+      this.drawn = json;
+      this.render(view);
+    }
     this.updateMouse(x, y, modifiers);
+    const empty = view.sprites.length === 0 && !view.fast && !this.dragging;
+    this.emptyTicks = empty ? this.emptyTicks + 1 : 0;
+    if (this.emptyTicks >= IDLE_TICKS) this.stop();
+    else this.setFast(view.fast || this.dragging);
   }
 
   private schedule(): void {
@@ -86,6 +97,12 @@ export class Overlay {
       this.tick();
       return GLib.SOURCE_CONTINUE;
     });
+  }
+
+  private stop(): void {
+    if (this.timer) GLib.source_remove(this.timer);
+    this.timer = 0;
+    this.emptyTicks = 0;
   }
 
   private setFast(fast: boolean): void {
@@ -104,6 +121,7 @@ export class Overlay {
 
   private updateScreens(): void {
     this.stage.setScreens(screens(this.edges.overDock, this.edges.overMenuBar));
+    this.drawn = ''; // the same view may now fall elsewhere
   }
 
   private render(view: View): void {
