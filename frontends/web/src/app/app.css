@@ -1,8 +1,9 @@
 header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 h1 {
@@ -37,4 +38,15 @@ h1 {
   .overview {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+footer {
+  margin-top: 32px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+footer a {
+  color: inherit;
 }
