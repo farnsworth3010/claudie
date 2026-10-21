@@ -33,7 +33,7 @@ Subagents get a look of their own, picked from their name (explorer, reviewer, s
 Every session of the same project shares a colour, each in its own size. The images above are rendered from the same code that draws the Clawds in the app.
 
 ## Using it
-- **Hover** a Clawd to see its project, what it is doing, how full its context is and its subagents.
+- **Hover** a Clawd to see its project, what it is doing, how full its context is, its subagents and how long until your next [break](#breaks).
 - **Drag** the group anywhere; it walks along, bumps into the screen edges and remembers where you left it.
 - **Click** to poke a Clawd. Three clicks in a row chirp.
 - **Ctrl + scroll** over a Clawd to make them bigger or smaller.
@@ -81,7 +81,7 @@ The daemon, the overlays and the settings page run the same TypeScript, so the l
 ## Resource use
 Claudie is idle most of the time, and what it does is light.
 - **Daemon.** One static Go binary with nothing else to install. With two sessions open (one working, one idle) it held about 24 MB of memory and used about 1 s of CPU in 15 minutes, around 0.1% of one core. It wakes for hook events, reads the new lines of each session's transcript every 0.4 s, checks every 5 s that the sessions' processes are alive, and saves the sessions to disk within a second of a change. With no sessions both timers stop: it used no measurable CPU in a minute and woke about once a second, until the next hook.
-- **Overlay.** At rest the scene ticks 20 times a second; it follows the display's refresh rate only while something moves. To know when the pointer is over a Clawd, the Mac app listens to mouse moves and the GNOME extension reads the pointer on each tick. A tick that changes nothing redraws nothing, and with no Clawds on screen the timer stops until the daemon sends something new.
+- **Overlay.** At rest the scene ticks 20 times a second; it follows the display's refresh rate only while something moves. To know when the pointer is over a Clawd, the Mac app listens to mouse moves and the GNOME extension reads the pointer on each tick. A tick that changes nothing redraws nothing, and with no Clawds on screen the timer stops until the daemon sends something new. For the [break reminder](#breaks) it reads the system's idle time every 5 s, a single call to GNOME Shell or macOS.
 - **Claude Code.** Hooks are small HTTP posts to `127.0.0.1`; the SessionStart script runs `curl` once per session.
 - **Network.** Everything stays on `127.0.0.1`; the only download is the daemon, once, from this repository's releases.
 
@@ -194,7 +194,7 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 | `limits` | false | Clocks of the 5-hour and weekly usage limits; they need the status line set up, see [Usage limits](#usage-limits) |
 | `clockInertia` | false | Thrown clocks keep flying, slow down and bounce off the screen's edges |
 | `clockGravity` | false | Clocks let go of fall to the bottom of their screen |
-| `breaks` | true | After `breakAfter` at the screen, the first Clawd holds up a sign asking for a break, and the idle ones yawn. **Skip** puts it off by `breakSnooze`, **Done** starts the count over, and so does `breakAway` without touching the keyboard or mouse (a locked screen counts). The overlay reads the system's idle time, so only the time you are at this machine counts; with no Clawd on screen the sign waits for one. Hover any Clawd for the time left until the break |
+| `breaks` | true | A Clawd asks you to take a break after long at the screen, see [Breaks](#breaks) |
 | `breakAfter` | 3000 | Seconds at the screen before the break sign, 300 to 7200 |
 | `breakSnooze` | 300 | Seconds **Skip** puts the sign off by, 60 to 1800 |
 | `breakAway` | 300 | Seconds without input that count as a break, 60 to 1800 |
@@ -212,6 +212,18 @@ By hand: write your status line command to `statusline-inner` and set the comman
 ```json
 "statusLine": { "type": "command", "command": "sh ~/.claude/plugins/data/claudie-claudie/claudie-statusline.sh" }
 ```
+
+### Breaks
+After `breakAfter` (50 minutes) at the screen, the first Clawd holds up a sign asking you to take a break, and the idle ones yawn along.
+
+<p align="center"><img src="docs/media/break-sign.png" alt="A Clawd holding up the break sign"></p>
+
+- **Skip** puts the sign off by `breakSnooze` (5 minutes); then it comes back.
+- **Done** starts the count over.
+- **Walking away** does the same: `breakAway` (5 minutes) without touching the keyboard or mouse counts as a break, a locked screen or a sleeping computer too.
+- **Hover** any Clawd for the time left until the break.
+
+The overlay reads the system's idle time, so only the time you spend at this machine counts, whichever sessions are running. With no Clawd on screen the sign waits for one. The settings page has the switch and the three timings under Breaks.
 
 ## Uninstall
 1. **If you set up the [limit clocks](#usage-limits)**, run `/claudie:limits off` first: removing the plugin deletes the wrapper, which would leave the status line empty.

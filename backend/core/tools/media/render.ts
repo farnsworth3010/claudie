@@ -28,6 +28,8 @@ const DEFAULT_LOOK = { hue: 0, size: 0 };
 const SKIN_LABEL_HEIGHT = 28;
 const SKIN_LABEL_SIZE = 14;
 const SKIN_LABEL_COLOR = '#c9d1d9';
+const SIGN_SIZE = 4; // the Clawds' size; the sign is drawn at half of it
+const SIGN_FRAMES = 40;
 
 // The clips shown in the README's table, by the file name they get.
 const CLIPS: ReadonlyArray<{ name: string; clip: Clip; ms?: number; mods?: FrameMods }> = [
@@ -177,8 +179,61 @@ function renderSkins(): void {
   execFileSync('magick', [file, ...labels, file]);
 }
 
+// Three Clawds after 50 minutes at the screen: the first holds up the break sign, the idle ones yawn.
+function renderBreakSign(): void {
+  let now = 1_000_000;
+  const stage = new Stage(null, () => now);
+  stage.setScreens([{ id: 1, area: { x: 0, y: 0, width: 900, height: 420 } }]);
+  const session = (id: string, project: string, more: Partial<Session> = {}): Session => ({
+    id,
+    pid: Number(id),
+    cwd: `/projects/${project}`,
+    project,
+    activity: 'idle',
+    mood: 'none',
+    agents: [],
+    startedAt: now - 60_000,
+    since: now - 3000,
+    seenAt: now,
+    ...more,
+  });
+  const sync = () =>
+    stage.sync({
+      now,
+      settings: { size: SIGN_SIZE },
+      sessions: [session('1', 'api'), session('2', 'web', { activity: 'working', tool: 'Edit' }), session('3', 'docs')],
+    });
+  sync();
+  for (let t = 0; t < 50 * 60_000; t += 5000) {
+    now += 5000;
+    stage.idle(0); // the overlay samples the idle time every 5 s
+  }
+  sync();
+  const views = Array.from({ length: SIGN_FRAMES }, () => {
+    const view = stage.tick(null);
+    now += FRAME_MS;
+    return view;
+  });
+  const sprites = views.flatMap((view) => view.sprites);
+  const left = Math.min(...sprites.map((s) => s.x)) - HERO_MARGIN;
+  const top = Math.min(...sprites.map((s) => s.y)) - HERO_MARGIN;
+  const right = Math.max(...sprites.map((s) => s.x + s.w * s.px)) + HERO_MARGIN;
+  const bottom = Math.max(...sprites.map((s) => s.y + s.h * s.px)) + HERO_MARGIN / 2;
+  const pixels = new Map<number, readonly number[]>();
+  const canvas = new Canvas(right - left, bottom - top, BACKGROUND);
+  for (const view of views) {
+    for (const s of view.sprites) if (s.pixels) pixels.set(s.id, s.pixels);
+  }
+  for (const s of views[views.length - 1].sprites) {
+    const known = pixels.get(s.id);
+    if (known) canvas.sprite(known, s.w, s.palette.split(','), s.x - left, s.y - top, s.px, s.opacity);
+  }
+  canvas.save(join(OUT, 'break-sign.png'));
+}
+
 mkdirSync(OUT, { recursive: true });
 renderHero();
 for (const clip of CLIPS) renderClip(clip);
 renderSkins();
+renderBreakSign();
 console.log(`media written to ${OUT}`);
