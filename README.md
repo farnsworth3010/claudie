@@ -24,6 +24,8 @@ Pixel-art Clawds on your screen, one for every running Claude Code session, show
 
 That's not all: the app has more animations than these, and the [settings page](#settings) shows every one of them.
 
+Claude Code doesn't report when you approve a permission, only when the approved tool is done. So the `!` stays up while the approved command runs: an edit clears it at once, a long build only at its end.
+
 Subagents get a look of their own, picked from their name (explorer, reviewer, security, planner, tester, debugger, writer, designer, executor, refactorer, or a helper for anything else). In plan mode the session's own Clawd puts on the planner's hard hat. Up to six minis stand around a session's Clawd; a pixel +N over the last one counts the rest.
 
 <p align="center"><img src="docs/media/skins.png" alt="Eleven subagent skins"></p>
@@ -189,23 +191,41 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 | `inertia` | false | A thrown group keeps flying, slows down and bounces off the screen's edges |
 | `gravity` | false | A group let go of falls to the bottom of its screen and stands there |
 | `wander` | false | Walks about on its own and crawls along the screen's edges, turned to stand on them; with gravity, along the bottom only. It stays put while a session waits for you. Without gravity, dragged up to an edge it clings to it, turned, and crawls on from where you let go |
+| `limits` | false | Clocks of the 5-hour and weekly usage limits; they need the status line set up, see [Usage limits](#usage-limits) |
+| `clockInertia` | false | Thrown clocks keep flying, slow down and bounce off the screen's edges |
+| `clockGravity` | false | Clocks let go of fall to the bottom of their screen |
+
+### Usage limits
+With `limits` on, two pixel clocks show up: `5h` for the 5-hour limit, `wk` for the weekly one. They stand apart from the Clawds, in the bottom-right corner at first: drag them where you like and they stay there, never walking or clinging to an edge; with `clockInertia` and `clockGravity` they can be thrown and fall, like the group with `inertia` and `gravity`. The Clawds and the clocks never overlap: the group steps aside for the clocks, and clocks dragged onto the group make way. How full a dial is shows how much of the limit is used: green, yellow from 50%, red from 80%. Hover a clock for the share used and when it resets. Only Pro and Max plans have these limits.
+
+Claude Code hands the limits only to the [status line](https://code.claude.com/docs/en/statusline) command, so Claudie needs to sit in it. Run this once in Claude Code:
+```
+/claudie:limits
+```
+It puts Claudie's wrapper in `statusLine` in `~/.claude/settings.json`, showing you the change first. The wrapper passes the limits to the daemon and then runs the status line you had before, so that one looks and works as it did; the old command is kept in `~/.claude/plugins/data/claudie-claudie/statusline-inner`. If something replaces the wrapper later, a new session tells you, and `/claudie:limits` sets it up again. `/claudie:limits off` puts your old status line back.
+
+By hand: write your status line command to `statusline-inner` and set the command in `settings.json` to:
+```json
+"statusLine": { "type": "command", "command": "sh ~/.claude/plugins/data/claudie-claudie/claudie-statusline.sh" }
+```
 
 ## Uninstall
-1. **Remove the plugin** in Claude Code; this also deletes the daemon binary it downloaded:
+1. **If you set up the [limit clocks](#usage-limits)**, run `/claudie:limits off` first: removing the plugin deletes the wrapper, which would leave the status line empty.
+2. **Remove the plugin** in Claude Code; this also deletes the daemon binary it downloaded:
    ```
    /plugin uninstall claudie@claudie
    /plugin marketplace remove claudie
    ```
-2. **Stop the daemon:**
+3. **Stop the daemon:**
    ```sh
    curl -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:47321/quit
    ```
-3. **Delete its files** (sessions, log, settings, the GNOME extension's saved position and sound):
+4. **Delete its files** (sessions, log, settings, the GNOME extension's saved position and sound):
    ```sh
    rm -rf ~/.local/state/claudie ~/.config/claudie ~/.cache/claudie
    ```
-4. **On the Mac**, quit the app, forget its saved position with `defaults delete Claudie`, and delete `Claudie.app` (or the clone, if you built it from source).
-5. **On GNOME**, remove the extension with `gnome-extensions uninstall claudie@farnsworth3010.github.io`.
+5. **On the Mac**, quit the app, forget its saved position with `defaults delete Claudie`, and delete `Claudie.app` (or the clone, if you built it from source).
+6. **On GNOME**, remove the extension with `gnome-extensions uninstall claudie@farnsworth3010.github.io`.
 
 ## Plans
 - **Notice a stop before the first word.** Esc or Ctrl+C while Claude is still thinking, before it has written anything, leaves no trace: Claude Code sends no hook and writes nothing to the transcript, so the Clawd keeps thinking until the next prompt (or Claude Code's idle notification about a minute later). A stop after the reply has begun is caught already. This waits for Claude Code to report interruptions.

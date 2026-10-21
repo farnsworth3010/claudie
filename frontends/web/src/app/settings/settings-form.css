@@ -1,16 +1,30 @@
 :host {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
-.toggles {
+details {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+summary {
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 10px;
 }
 
-.toggles label {
+.group label {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -24,12 +38,4 @@
 .reset.confirming {
   border-color: var(--bad);
   color: var(--bad);
-}
-
-h3 {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin: 6px 0 0;
 }

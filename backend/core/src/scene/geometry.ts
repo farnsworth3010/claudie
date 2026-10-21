@@ -1,5 +1,5 @@
 import { GAZE_RADIUS } from './constants/grid.ts';
-import type { Confined, Fitted, Frame, Gaze, Inset, Rect, Side } from './types.ts';
+import type { Confined, Fitted, Frame, Gaze, Inset, Point, Rect, Side } from './types.ts';
 
 // The pointer's offset from the eyes (grid pixels) -> one of eight directions, or straight ahead
 // when it is right on the face; undefined when it is too far away to notice.
@@ -46,4 +46,24 @@ export function confine(
   const fitY = fit(y, area.y, area.y + area.height - h, 'top', 'bottom');
   const walls = [fitX.wall, fitY.wall].filter((wall): wall is Side => wall !== undefined);
   return { x: fitX.value, y: fitY.value, walls };
+}
+
+// Where `r` goes to keep `gap` clear of `obstacle`: the shortest way along `axes` that stays inside
+// `area`, or the shortest of all when none does; undefined when they are apart already.
+export function clear(r: Rect, obstacle: Rect, gap: number, area: Rect, axes: 'x' | 'y' | 'xy'): Point | undefined {
+  const o = obstacle;
+  const apart =
+    r.x >= o.x + o.width + gap ||
+    r.x + r.width <= o.x - gap ||
+    r.y >= o.y + o.height + gap ||
+    r.y + r.height <= o.y - gap;
+  if (apart) return undefined;
+  const ways: Point[] = [];
+  if (axes !== 'y') ways.push({ x: o.x - gap - r.width, y: r.y }, { x: o.x + o.width + gap, y: r.y });
+  if (axes !== 'x') ways.push({ x: r.x, y: o.y - gap - r.height }, { x: r.x, y: o.y + o.height + gap });
+  const inside = (p: Point) =>
+    p.x >= area.x && p.y >= area.y && p.x + r.width <= area.x + area.width && p.y + r.height <= area.y + area.height;
+  const distance = (p: Point) => Math.abs(p.x - r.x) + Math.abs(p.y - r.y);
+  const fitting = ways.filter(inside);
+  return (fitting.length ? fitting : ways).reduce((best, p) => (distance(p) < distance(best) ? p : best));
 }

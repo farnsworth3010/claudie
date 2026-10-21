@@ -1,25 +1,22 @@
+import type { Limits } from '../../limits/types.ts';
 import type { Session } from '../../session/types.ts';
 import { DEFAULT_SETTINGS, RANGES } from '../../settings/constants.ts';
 import { settingsFrom } from '../../settings/settings.ts';
 import type { Settings } from '../../settings/types.ts';
 import { clamp } from '../../shared/math.ts';
+import { CLOCKS_CORNER } from '../constants/clock.ts';
 import { FOLLOW_MS } from '../constants/crew.ts';
 import { GRID_H, GRID_W } from '../constants/grid.ts';
 import {
-  AIR_FRICTION_MS,
   APPROACH_SPEED,
-  BOUNCE,
   BUMP_SPEED,
   CHIRP_CLICKS,
   DRAG_THRESHOLD,
-  GRAVITY,
-  GROUND_FRICTION_MS,
   MARGIN,
   MAX_SCREEN_SHARE,
   MAX_THROW_SPEED,
   MAX_TICK_MS,
   MULTI_CLICK_MS,
-  REST_SPEED,
   SPACING,
   TOOLTIP_GAP,
   VELOCITY_SMOOTH_MS,
@@ -34,12 +31,14 @@ import {
 import { WALK_MS } from '../constants/timing.ts';
 import { glide } from '../crew-layout.ts';
 import { socialCues } from '../director.ts';
-import { confine } from '../geometry.ts';
+import { clear, confine } from '../geometry.ts';
 import { pickLook } from '../look.ts';
 import type {
   Action,
   Anchor,
   Click,
+  ClockDrag,
+  ClockFlight,
   Confined,
   Drag,
   Frame,
@@ -57,6 +56,8 @@ import type {
 } from '../types.ts';
 import { moveAlong, nearest, placeAt, type Spot, spotAt, type Track, track } from './crawl.ts';
 import { Crew } from './crew.ts';
+import { fly } from './flight.ts';
+import { Gauges } from './gauges.ts';
 import { crewLabel } from './label.ts';
 import { toUpright, turnedSize, turnPixels, turnRect } from './orient.ts';
 import type { Sprite } from './sprite.ts';
@@ -72,6 +73,10 @@ const crewKey = (session: Session): string => (session.pid ? `pid:${session.pid}
 
 export class Stage {
   private readonly crews = new Map<string, Crew>(); // left to right, in order of arrival
+  private readonly gauges = new Gauges(); // the usage limit clocks, apart from the crews
+  private limits: Limits | undefined;
+  private clockDrag: ClockDrag | null = null;
+  private clockFlight: ClockFlight | null = null;
   private readonly clock: () => number;
   private clockOffset = 0;
   private settings: Settings = DEFAULT_SETTINGS; // until the daemon's first snapshot
@@ -108,6 +113,7 @@ export class Stage {
   sync(snapshot: StageSnapshot): void {
     this.clockOffset = snapshot.now - this.clock();
     if (snapshot.settings) this.applySettings(settingsFrom(snapshot.settings));
+    this.limits = snapshot.limits;
     const seen = new Set<string>();
     for (const session of snapshot.sessions) {
       const key = crewKey(session);
@@ -139,11 +145,14 @@ export class Stage {
     const crews = [...this.crews.values()];
     this.box.width = crews.reduce((sum, crew) => sum + crew.width, 0) + SPACING * Math.max(crews.length - 1, 0);
     this.box.height = Math.max(0, ...crews.map((crew) => crew.height));
+    this.gauges.layout(this.settings.limits && crews.length ? this.limits : undefined, now, this.basePx);
+    const clocksFlying = this.flyClocks(now);
     const dragged = this.follow(now);
     this.cling(crews);
     if (!this.move && !this.roam) this.place();
     if (!this.move && !this.roam && this.settings.gravity && crews.length && this.aboveFloor()) this.drop();
     const roaming = this.wander(now, crews);
+    this.keepOffClocks(now);
     const moving = dragged || roaming;
 
     const { gaze, antics, neglect, pace, stroll, sleepAfter, neglectAfter, patience } = this.settings;
@@ -173,26 +182,36 @@ export class Stage {
         if (sprite.frame) view.sprites.push(this.drawOf(sprite, sprite.frame));
       }
     });
+    const clocks = this.clocksAt();
+    this.gauges.draw(clocks.x, clocks.y);
+    for (const sprite of this.gauges.list) {
+      if (sprite.frame) view.sprites.push(this.drawOf(sprite, sprite.frame, 'bottom'));
+    }
     this.playBumps(now, bounds);
 
-    const hovered = upright && !this.drag ? crews.find((crew) => crew.hit(upright.x, upright.y)) : undefined;
-    if (hovered) {
-      const r = turnRect(this.edge, this.box, hovered);
-      view.tooltip = { text: crewLabel(hovered.session), x: r.x + r.width / 2, y: r.y - TOOLTIP_GAP };
-    }
-    view.fast = !!this.move || roaming || crews.some((crew) => crew.animating);
+    const tip = pointer && !this.drag && !this.clockDrag ? this.tooltipAt(pointer, crews, now) : undefined;
+    if (tip) view.tooltip = { text: tip.text, x: tip.rect.x + tip.rect.width / 2, y: tip.rect.y - TOOLTIP_GAP };
+    view.fast =
+      !!this.move || !!this.clockDrag?.moved || clocksFlying || roaming || crews.some((crew) => crew.animating);
     return view;
   }
 
-  // Whether the point lands on a drawn Clawd, so the app should take the mouse there.
+  // Whether the point lands on a drawn Clawd or clock, so the app should take the mouse there.
   hit(x: number, y: number): boolean {
-    const p = this.upright({ x, y });
-    return !!this.drag || [...this.crews.values()].some((crew) => crew.hit(p.x, p.y));
+    return !!this.drag || !!this.clockDrag || this.gauges.hit(x, y) || this.crewHit(x, y);
   }
 
+  // The clocks are drawn over the crews, so they are picked up first.
   press(x: number, y: number): boolean {
     this.drag = null;
-    if (!this.hit(x, y)) return false;
+    this.clockDrag = null;
+    if (this.gauges.hit(x, y)) {
+      const at = this.clocksAt();
+      this.clockFlight = null; // caught in flight, they are the pointer's again
+      this.clockDrag = { x, y, fromX: at.x, fromY: at.y, moved: false, vx: 0, vy: 0, t: this.now() };
+      return true;
+    }
+    if (!this.crewHit(x, y)) return false;
     this.drag = { x, y, boxX: this.box.x, boxY: this.box.y, moved: false };
     return true;
   }
@@ -200,6 +219,10 @@ export class Stage {
   // The group stays on the screen under the pointer and bumps into its edges; crossing to a
   // neighbouring screen needs the pointer itself to cross.
   motion(x: number, y: number): void {
+    if (this.clockDrag) {
+      this.moveClocks(this.clockDrag, x, y);
+      return;
+    }
     const drag = this.drag;
     if (!drag) return;
     const dx = x - drag.x;
@@ -239,6 +262,12 @@ export class Stage {
   }
 
   release(): void {
+    const clocks = this.clockDrag;
+    if (clocks) {
+      this.clockDrag = null;
+      if (clocks.at && clocks.screen) this.letGoOfClocks(clocks, clocks.screen, clocks.at);
+      return;
+    }
     const drag = this.drag;
     if (!drag) return;
     this.drag = null;
@@ -264,6 +293,182 @@ export class Stage {
 
   private now(): number {
     return this.clock() + this.clockOffset;
+  }
+
+  // A clock's tooltip over the clock, a crew's over the whole crew, as it stands on screen.
+  private tooltipAt(p: Point, crews: Crew[], now: number): { text: string; rect: Rect } | undefined {
+    const clock = this.gauges.hovered(p.x, p.y, now);
+    if (clock) return clock;
+    const upright = this.upright(p);
+    const crew = crews.find((candidate) => candidate.hit(upright.x, upright.y));
+    return crew ? { text: crewLabel(crew.session), rect: turnRect(this.edge, this.box, crew) } : undefined;
+  }
+
+  private crewHit(x: number, y: number): boolean {
+    const p = this.upright({ x, y });
+    return [...this.crews.values()].some((crew) => crew.hit(p.x, p.y));
+  }
+
+  // The clocks' top-left corner: in the hand, or anchored by their bottom-right corner to their screen.
+  private clocksAt(): Point {
+    if (this.clockDrag?.at) return this.clockDrag.at;
+    if (this.clockFlight) return { x: Math.round(this.clockFlight.x), y: Math.round(this.clockFlight.y) };
+    const corner = this.anchor.clocks ?? CLOCKS_CORNER;
+    const { area } = this.clocksScreen();
+    const { width, height } = this.gauges;
+    const at = confine(
+      area.x + area.width - corner.right - width,
+      area.y + area.height - corner.bottom - height,
+      width,
+      height,
+      area,
+    );
+    return { x: Math.round(at.x), y: Math.round(at.y) };
+  }
+
+  private clocksScreen(): Screen {
+    const corner = this.anchor.clocks ?? CLOCKS_CORNER;
+    return this.screens.find((screen) => screen.id === corner.screen) ?? this.screens[0];
+  }
+
+  // The clocks follow the pointer straight, kept on the screen under it: no glide and no walls to bump.
+  private moveClocks(drag: ClockDrag, x: number, y: number): void {
+    const dx = x - drag.x;
+    const dy = y - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    drag.moved = true;
+    const screen = this.screenAt(x, y);
+    const { width, height } = this.gauges;
+    const at = confine(drag.fromX + dx, drag.fromY + dy, width, height, screen.area);
+    // Dragged onto the crews, the clocks are the ones that make way.
+    const off = this.crews.size
+      ? clear({ ...at, width, height }, this.groupRect(), SPACING, screen.area, 'xy')
+      : undefined;
+    const to = off ?? at;
+    const from = drag.at ?? { x: drag.fromX, y: drag.fromY };
+    const now = this.now();
+    const dt = now - drag.t;
+    if (dt > 0) {
+      const k = 1 - Math.exp(-dt / VELOCITY_SMOOTH_MS);
+      drag.vx += ((to.x - from.x) / dt - drag.vx) * k;
+      drag.vy += ((to.y - from.y) / dt - drag.vy) * k;
+      drag.t = now;
+    }
+    drag.at = { x: Math.round(to.x), y: Math.round(to.y) };
+    drag.screen = screen;
+  }
+
+  // With inertia the clocks fly off at the speed they were dragged, with gravity alone they just
+  // drop; otherwise they stay where they are let go. A pointer held still a while throws nothing.
+  private letGoOfClocks(drag: ClockDrag, screen: Screen, at: Point): void {
+    const { clockInertia, clockGravity } = this.settings;
+    if (!clockInertia && !clockGravity) {
+      this.anchorClocks(screen, at);
+      return;
+    }
+    const now = this.now();
+    const still = Math.exp(-Math.max(now - drag.t, 0) / VELOCITY_SMOOTH_MS);
+    let vx = clockInertia ? drag.vx * still : 0;
+    let vy = clockInertia ? drag.vy * still : 0;
+    const speed = Math.hypot(vx, vy);
+    if (speed > MAX_THROW_SPEED) {
+      vx *= MAX_THROW_SPEED / speed;
+      vy *= MAX_THROW_SPEED / speed;
+    }
+    this.clockFlight = { ...at, vx, vy, screen, at: now };
+  }
+
+  // One step of the clocks' flight; with gravity, clocks standing in mid-air drop from there. In
+  // flight they make way for the crews themselves, sideways while falling so they never land on
+  // them. Returns whether they fly.
+  private flyClocks(now: number): boolean {
+    const { clockInertia: inertia, clockGravity: gravity } = this.settings;
+    const { width, height } = this.gauges;
+    if (!width) {
+      this.clockFlight = null;
+      return false;
+    }
+    if (!this.clockFlight && !this.clockDrag && gravity) {
+      const at = this.clocksAt();
+      const screen = this.clocksScreen();
+      if (at.y + height < screen.area.y + screen.area.height - 0.5) {
+        this.clockFlight = { ...at, vx: 0, vy: 0, screen, at: now };
+      }
+    }
+    const flight = this.clockFlight;
+    if (!flight) return false;
+    const dt = Math.min(now - flight.at, MAX_TICK_MS);
+    flight.at = now;
+    const area = flight.screen.area;
+    const { resting } = fly(flight, width, height, area, dt, { inertia, gravity });
+    const off = this.crews.size
+      ? clear({ x: flight.x, y: flight.y, width, height }, this.groupRect(), SPACING, area, gravity ? 'x' : 'xy')
+      : undefined;
+    if (off) {
+      if (off.x !== flight.x) flight.vx = 0;
+      if (off.y !== flight.y) flight.vy = 0;
+      flight.x = off.x;
+      flight.y = off.y;
+    }
+    if (resting) {
+      this.clockFlight = null;
+      this.anchorClocks(flight.screen, { x: Math.round(flight.x), y: Math.round(flight.y) });
+    }
+    return !resting;
+  }
+
+  // The crews' box as it stands on screen, turned to its edge.
+  private groupRect(): Rect {
+    return { x: this.box.x, y: this.box.y, ...turnedSize(this.edge, this.box.width, this.box.height) };
+  }
+
+  // The crews never stand on the clocks: wherever they are put or go, they step off the shortest
+  // way that suits how they move. In the hand or flying free, any way; standing, falling or walking
+  // a floor or ceiling, sideways, so they never end up on top; crawling a wall, along it. A walk
+  // into the clocks ends there.
+  private keepOffClocks(now: number): void {
+    if (!this.gauges.width || !this.crews.size) return;
+    const { width, height } = this.gauges;
+    const clocks = { ...this.clocksAt(), width, height };
+    const roam = this.roam;
+    const crawling = !!roam && !roam.free && !roam.approach;
+    const wall = this.edge === 'left' || this.edge === 'right';
+    const loose = !this.settings.gravity && (!!this.move || !!roam?.free || !!roam?.approach);
+    const axes = crawling ? (wall ? 'y' : 'x') : loose ? 'xy' : 'x';
+    const area = this.workArea();
+    const to = clear(this.groupRect(), clocks, SPACING, area, axes);
+    if (!to) return;
+    this.box.x = Math.round(to.x);
+    this.box.y = Math.round(to.y);
+    const move = this.move;
+    if (move) {
+      if (move.x !== to.x) move.vx = 0;
+      if (move.y !== to.y) move.vy = 0;
+      move.x = to.x;
+      move.y = to.y;
+    }
+    if (!roam) return;
+    if (roam.free) Object.assign(roam.free, to);
+    if (roam.approach) Object.assign(roam.approach, to);
+    if (crawling) {
+      const t = track(area, this.box.width, this.box.height, this.settings.gravity);
+      roam.spot = spotAt(t, nearest(t, this.box).s);
+    }
+    if (roam.remaining !== null) {
+      roam.remaining = null;
+      roam.restUntil = now + this.between(WANDER_REST_MS);
+    }
+  }
+
+  private anchorClocks(screen: Screen, at: Point): void {
+    const { area } = screen;
+    const clocks = {
+      screen: screen.id,
+      right: area.x + area.width - (at.x + this.gauges.width),
+      bottom: area.y + area.height - (at.y + this.gauges.height),
+    };
+    this.anchor = { ...this.anchor, clocks };
+    this.actions.push({ type: 'anchor', anchor: this.anchor });
   }
 
   private lookFor(session: Session): Look {
@@ -366,36 +571,15 @@ export class Stage {
 
   // One step of flight: gravity pulls, friction slows, the screen's edges bounce it back. It
   // comes to rest when slow enough, on the floor if gravity is on.
+  // A hard hit on a wall makes the crews flinch.
   private fly(move: Move, dt: number): void {
     const { inertia, gravity } = this.settings;
-    const area = move.screen.area;
     const { width, height } = this.box;
-    const floor = area.y + area.height - height;
-    const grounded = gravity && move.y >= floor - 0.5;
-    if (gravity && !grounded) move.vy += GRAVITY * dt;
-    if (inertia) {
-      const k = Math.exp(-dt / (grounded ? GROUND_FRICTION_MS : AIR_FRICTION_MS));
-      move.vx *= k;
-      if (!gravity) move.vy *= k;
-    }
-    const to = confine(move.x + move.vx * dt, move.y + move.vy * dt, width, height, area, this.inset());
-    for (const side of to.walls) this.bounce(move, side);
-    move.x = to.x;
-    move.y = to.y;
-    this.box.x = Math.round(to.x);
-    this.box.y = Math.round(to.y);
-    const resting = Math.hypot(move.vx, move.vy) < REST_SPEED && (!gravity || move.y >= floor - 0.5);
+    const { hits, resting } = fly(move, width, height, move.screen.area, dt, { inertia, gravity }, this.inset());
+    for (const hit of hits) if (hit.speed > BUMP_SPEED) this.bumps.add(hit.side);
+    this.box.x = Math.round(move.x);
+    this.box.y = Math.round(move.y);
     if (resting) this.settle(move);
-  }
-
-  // Off a wall with some of its speed, flinching if the hit was hard.
-  private bounce(move: Move, side: Side): void {
-    const across = side === 'left' || side === 'right' ? 'vx' : 'vy';
-    const speed = Math.abs(move[across]);
-    if (speed > BUMP_SPEED) this.bumps.add(side);
-    const away = side === 'left' || side === 'top' ? 1 : -1;
-    const kept = speed * BOUNCE;
-    move[across] = kept < REST_SPEED ? 0 : away * kept;
   }
 
   // Bumps the crews against each edge the box has just reached; `to` is where the pointer wants it.
@@ -460,6 +644,7 @@ export class Stage {
   private anchorTo(screen: Screen): void {
     const { area } = screen;
     this.anchor = {
+      ...this.anchor,
       screen: screen.id,
       right: area.x + area.width - (this.box.x + this.box.width),
       bottom: area.y + area.height - (this.box.y + this.box.height),
@@ -699,8 +884,8 @@ export class Stage {
     return true;
   }
 
-  private drawOf(sprite: Sprite, frame: Frame): SpriteDraw {
-    const edge = this.edge;
+  // `edge`: the one the sprite stands on; the crews' by default.
+  private drawOf(sprite: Sprite, frame: Frame, edge: Side = this.edge): SpriteDraw {
     const pixels = this.turnedPixels(frame, edge);
     let id = this.frameIds.get(pixels);
     const fresh = id === undefined;

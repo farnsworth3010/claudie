@@ -124,7 +124,7 @@ export const CLIPS = {
     ],
   },
   fidget: { loop: true, steps: Object.values(SCENES).flat() },
-  // Antics while a dialog has waited too long (and the skeleton for a long-idle session).
+  // Antics while a dialog has waited too long.
   highJump: {
     loop: true,
     steps: [
@@ -180,6 +180,20 @@ export const CLIPS = {
     steps: [
       ...repeat(27, (i) => s(220, { skeleton: true, prop: { tumbleweed: 19 - i } })),
       s(4000, { skeleton: true }),
+    ],
+  },
+  // Grown old for good: dozes over its cane, nods off, wakes with a start, looks about, dozes on.
+  grandpa: {
+    loop: true,
+    steps: [
+      s(900, { squash: 2, eyes: 'closed', fx: 'z1', prop: { elder: 'cane' } }),
+      s(900, { squash: 2, eyes: 'closed', fx: 'z2', prop: { elder: 'cane' } }),
+      s(900, { squash: 2, eyes: 'closed', fx: 'z3', prop: { elder: 'cane' } }),
+      s(700, { squash: 3, eyes: 'closed', prop: { elder: 'cane' } }),
+      s(250, { squash: 1, eyes: 'wide', prop: { elder: 'cane' } }),
+      s(800, { squash: 1, eyeDx: -1, prop: { elder: 'cane' } }),
+      s(800, { squash: 1, eyeDx: 1, prop: { elder: 'cane' } }),
+      s(600, { squash: 2, eyes: 'closed', prop: { elder: 'cane' } }),
     ],
   },
   // Neglected: cobwebbed with a spider letting itself down, then overgrown, then snowed in.

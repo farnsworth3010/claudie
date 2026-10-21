@@ -1,4 +1,4 @@
-// A 3×5 pixel font for counts: '#' is a lit pixel.
+// A 3×5 pixel font for counts and the limit clocks' labels: '#' is a lit pixel.
 export const GLYPHS: Readonly<Record<string, readonly string[]>> = {
   '+': ['...', '.#.', '###', '.#.', '...'],
   '0': ['###', '#.#', '#.#', '#.#', '###'],
@@ -11,6 +11,9 @@ export const GLYPHS: Readonly<Record<string, readonly string[]>> = {
   '7': ['###', '..#', '.#.', '.#.', '.#.'],
   '8': ['###', '#.#', '###', '#.#', '###'],
   '9': ['###', '#.#', '###', '..#', '###'],
+  h: ['#..', '#..', '###', '#.#', '#.#'],
+  k: ['#..', '#.#', '##.', '#.#', '#.#'],
+  w: ['...', '#.#', '#.#', '###', '#.#'],
 };
 export const GLYPH_W = 3;
 export const GLYPH_H = 5;

@@ -17,6 +17,9 @@ export interface Settings {
   readonly stroll: boolean; // idle, it paces slowly about instead of falling asleep, gathering cobwebs and turning to bones
   readonly wander: boolean; // walks about on its own and crawls along the screen's edges (with gravity, the floor only)
   readonly anywhere: boolean; // wandering without gravity goes all over the screen, upright, not round its edges
+  readonly limits: boolean; // clocks of the 5-hour and weekly usage limits, apart from the crews, fed by the status line
+  readonly clockInertia: boolean; // the clocks let go of keep flying, slow down and bounce off the edges
+  readonly clockGravity: boolean; // the clocks let go of fall to the bottom of their screen
   // Idle timings, in seconds.
   readonly sleepAfter: number; // idle this long, it yawns and falls asleep; it looks around a third of the way
   readonly neglectAfter: number; // idle this long, cobwebs; the flower, the snow and the bones follow in proportion
@@ -37,4 +40,7 @@ export type SettingsFlag =
   | 'gravity'
   | 'wander'
   | 'stroll'
-  | 'anywhere';
+  | 'anywhere'
+  | 'limits'
+  | 'clockInertia'
+  | 'clockGravity';

@@ -26,6 +26,8 @@ type Engine interface {
 	Settings() (string, error)
 	// UpdateSettings applies a client's patch; ok is false when the patch is refused.
 	UpdateSettings(patch string) (settings string, ok bool, err error)
+	// Limits takes a status line's input; it reports whether the usage limits changed.
+	Limits(statusLine []byte) (bool, error)
 }
 
 // Options is what a server is made of.
@@ -52,6 +54,7 @@ type Options struct {
 //	GET  /events    server-sent events: the snapshot on connect and after every change
 //	GET  /settings  the overlay settings
 //	POST /settings  a JSON patch of them, answered with the settings after it
+//	POST /statusline  Claude Code's status line input, for the usage limits in it
 //	GET  /version   {"version": …}, so a newer plugin can replace an older daemon
 //	POST /quit      stop
 //	GET  /          the settings page and its files

@@ -44,7 +44,8 @@ export class Preview {
       const snapshot = this.daemon.snapshot();
       const now = snapshot?.now ?? Date.now();
       const sessions = snapshot?.sessions.length ? [...snapshot.sessions] : [this.sample(now)];
-      this.stage.sync({ now, sessions, settings: this.daemon.settings() });
+      const limits = snapshot?.limits;
+      this.stage.sync({ now, sessions, settings: this.daemon.settings(), ...(limits && { limits }) });
     });
     inject(AnimationFrames).add(() => this.frame(), inject(DestroyRef));
   }

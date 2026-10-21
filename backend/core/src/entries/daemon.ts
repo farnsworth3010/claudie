@@ -1,5 +1,7 @@
 // The daemon's side of the core, bundled into backend/daemon/src/core.js and run by the Go daemon in goja.
 // Everything crosses the boundary as JSON strings, so the Go side needs no knowledge of the types.
+import { limitsFrom } from '../limits/limits.ts';
+import type { Limits } from '../limits/types.ts';
 import { Sessions } from '../session/sessions.ts';
 import { transcriptNote } from '../session/transcript.ts';
 import type { Session, Snapshot } from '../session/types.ts';
@@ -8,6 +10,7 @@ import type { Settings } from '../settings/types.ts';
 
 const sessions = new Sessions();
 let settings: Settings = settingsFrom(undefined);
+let limits: Limits | undefined;
 
 const api = {
   hook: (envelope: string): boolean => sessions.hook(JSON.parse(envelope)),
@@ -21,7 +24,15 @@ const api = {
   transcripts: (): string => JSON.stringify(sessions.transcripts()),
   // With none, the daemon's timers rest.
   count: (): number => sessions.list().length,
-  snapshot: (now: number): string => JSON.stringify({ now, sessions: sessions.list(), settings } satisfies Snapshot),
+  snapshot: (now: number): string =>
+    JSON.stringify({ now, sessions: sessions.list(), settings, ...(limits && { limits }) } satisfies Snapshot),
+  // The status line's input; whether the limits in it are news. One without limits leaves the last ones.
+  limits: (raw: string): boolean => {
+    const next = limitsFrom(JSON.parse(raw));
+    if (!next || JSON.stringify(next) === JSON.stringify(limits)) return false;
+    limits = next;
+    return true;
+  },
   // The sessions to keep across restarts, and back.
   save: (): string => JSON.stringify(sessions.list()),
   restore: (saved: string): void => {

@@ -51,3 +51,10 @@ test('idle timings are seconds within their ranges', () => {
   assert.equal(settingsFrom({ neglectAfter: 99_999 }).neglectAfter, 3600);
   assert.deepEqual(settingsPatch({ patience: 12 }), { patience: 12 });
 });
+
+test('the usage limit clocks are off unless turned on', () => {
+  assert.equal(settingsFrom({}).limits, false);
+  assert.equal(settingsFrom({ limits: true }).limits, true);
+  assert.deepEqual(settingsPatch({ limits: true }), { limits: true });
+  assert.equal(settingsPatch({ limits: 1 }), undefined);
+});

@@ -44,12 +44,12 @@ export const ANTIC_MS = 6_000;
 export const ANTIC_ROUND_MS = 10_000;
 
 // Left idle that long, a sleeping mascot gathers cobwebs, gets overgrown, snowed in, and at last
-// turns to bones for good; each stage stays until the next one.
+// grows old for good; each stage stays until the next one.
 export const NEGLECT: ReadonlyArray<readonly [number, Clip]> = [
   [5 * 60_000, 'cobweb'],
   [9 * 60_000, 'overgrown'],
   [13 * 60_000, 'snowedIn'],
-  [17 * 60_000, 'skeleton'],
+  [17 * 60_000, 'grandpa'],
 ];
 
 // Clips of a Clawd just standing about or busy with its hands, which a drag may turn into walking.

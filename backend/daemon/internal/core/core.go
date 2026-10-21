@@ -41,6 +41,11 @@ func (c *Core) Hook(envelope []byte) (bool, error) {
 	return invoke(c, "hook", asBool, string(envelope))
 }
 
+// Limits takes a status line's input; it reports whether the usage limits in it are news.
+func (c *Core) Limits(statusLine []byte) (bool, error) {
+	return invoke(c, "limits", asBool, string(statusLine))
+}
+
 // Snapshot is every session as JSON, stamped with the daemon's clock.
 func (c *Core) Snapshot(now time.Time) (string, error) {
 	return invoke(c, "snapshot", asString, now.UnixMilli())

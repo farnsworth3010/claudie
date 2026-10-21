@@ -1,7 +1,8 @@
 #!/bin/sh
 # Shows off the mascots with made-up sessions sent to a running daemon: tools in hand, a permission
 # and a question waiting, a crew of subagents, a fever from a full context, plan mode, a commit and
-# a failed test run now and then. Ctrl+C ends the sessions.
+# a failed test run now and then, and usage limits for the clocks (shown with the limits setting on).
+# Ctrl+C ends the sessions.
 #   tools/demo.sh
 set -eu
 url="http://127.0.0.1:${CLAUDIE_PORT:-47321}/hook"
@@ -19,6 +20,13 @@ tool() { # name event tool [command]
 agent() { # name event agent_type [tool]
   post "$1" "$2" ",\"agent_id\":\"$3-$$\",\"agent_type\":\"$3\",\"tool_name\":\"${4:-Read}\""
 }
+# What a status line gets: a 5-hour limit filling up and a weekly one nearly used up.
+limits() {
+  now=$(date +%s)
+  curl -sf -m 2 -o /dev/null -H 'content-type: application/json' --data-binary \
+    "{\"rate_limits\":{\"five_hour\":{\"used_percentage\":$((20 + tick % 60)),\"resets_at\":$((now + 8040))},\"seven_day\":{\"used_percentage\":86,\"resets_at\":$((now + 273600))}}}" \
+    "${url%/hook}/statusline" || true
+}
 # The context size only comes from the transcript, so the feverish one gets a transcript of its own.
 transcript() { # name tokens
   printf '{"type":"assistant","timestamp":"%s","message":{"model":"demo","usage":{"input_tokens":%s}}}\n' \
@@ -31,7 +39,9 @@ stop() {
 }
 trap 'stop; exit 0' INT TERM
 
+tick=0
 for n in $names; do post "$n" SessionStart; sleep 0.3; done
+limits
 sleep 2
 transcript fever 850000
 post fever UserPromptSubmit ",\"transcript_path\":\"$dir/fever.jsonl\""
@@ -51,7 +61,6 @@ post crew Stop
 
 echo "demo running; Ctrl+C to end it"
 extra="oh-my-claudecode:designer oh-my-claudecode:debugger doc-writer oh-my-claudecode:executor"
-tick=0
 while :; do
   set -- Edit Bash Read WebFetch TodoWrite
   shift $((tick % 5))
@@ -69,6 +78,7 @@ while :; do
     2) post ship UserPromptSubmit; tool ship PreToolUse Bash 'pnpm test'; tool ship PostToolUseFailure Bash 'pnpm test'; post ship StopFailure ;;
   esac
   transcript fever 850000
+  limits
   tick=$((tick + 1))
   sleep 8
 done

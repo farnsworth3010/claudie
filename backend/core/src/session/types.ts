@@ -1,3 +1,4 @@
+import type { Limits } from '../limits/types.ts';
 import type { Settings } from '../settings/types.ts';
 
 // A Claude Code hook event: only the fields Claudie reads; the daemon keeps the rest untouched.
@@ -97,9 +98,11 @@ export interface TranscriptRef {
   readonly path: string;
 }
 
-// What the overlay gets: the daemon's clock, so animations line up, every session and the settings.
+// What the overlay gets: the daemon's clock, so animations line up, every session, the settings and
+// the usage limits once a status line has reported them.
 export interface Snapshot {
   readonly now: number;
   readonly sessions: readonly Session[];
   readonly settings: Settings;
+  readonly limits?: Limits;
 }

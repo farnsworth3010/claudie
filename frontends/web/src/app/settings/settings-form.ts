@@ -1,8 +1,16 @@
 import { Component, DestroyRef, inject, linkedSignal, signal } from '@angular/core';
-import { DEFAULT_SETTINGS, FLAGS, RANGES } from '@claudie/core/settings/constants.ts';
+import { DEFAULT_SETTINGS, RANGES } from '@claudie/core/settings/constants.ts';
 import type { Settings, SettingsFlag, SettingsNumber } from '@claudie/core/settings/types.ts';
 import { Daemon } from '../daemon/daemon.ts';
-import { FLAG_LABELS, RESET_CONFIRM_MS, SAVE_DELAY_MS, SLIDERS, type SliderSpec, TIMING_SLIDERS } from './constants.ts';
+import {
+  flagLabels,
+  GROUPS,
+  RESET_CONFIRM_MS,
+  SAVE_DELAY_MS,
+  SLIDERS,
+  type SliderSpec,
+  TIMING_SLIDERS,
+} from './constants.ts';
 import { SliderField } from './slider-field.ts';
 
 type SliderValues = Readonly<Record<SettingsNumber, number>>;
@@ -18,10 +26,8 @@ type SliderValues = Readonly<Record<SettingsNumber, number>>;
 export class SettingsForm {
   private readonly daemon = inject(Daemon);
   protected readonly settings = this.daemon.settings;
-  protected readonly flags = FLAGS;
-  protected readonly labels = FLAG_LABELS;
-  protected readonly sliders = SLIDERS;
-  protected readonly timings = TIMING_SLIDERS;
+  protected readonly groups = GROUPS;
+  protected readonly labels = flagLabels(/Mac/.test(navigator.userAgent));
   // A slider in the hand keeps what the hand says, not an echo of a moment ago.
   protected readonly values = linkedSignal<Settings, SliderValues>({
     source: this.settings,

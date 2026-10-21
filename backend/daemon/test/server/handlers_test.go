@@ -112,3 +112,36 @@ func TestAnEventSentTwiceCountsOnce(t *testing.T) {
 		t.Errorf("event log has %d lines, want 1: the copy is dropped before anything else", lines)
 	}
 }
+
+func TestTheStatusLineBringsTheLimits(t *testing.T) {
+	e := start(t)
+	events := openStream(t, e)
+	events.next(t) // the state on connect
+
+	post := func(body string) int {
+		t.Helper()
+		res, err := http.Post(e.url+"/statusline", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res.StatusCode
+	}
+	limits := `{"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":1700003600}}}`
+	if code := post(limits); code != http.StatusNoContent {
+		t.Fatalf("status %d, want 204", code)
+	}
+	if got := events.next(t); !strings.Contains(got, `"limits":{"fiveHour":{"used":23.5,"resetsAt":1700003600000}}`) {
+		t.Errorf("snapshot after the limits: %s", got)
+	}
+	post(limits) // the same again is no news
+	post(`{"model":{"id":"x"}}`)
+	select {
+	case got := <-events.events:
+		t.Errorf("a snapshot without news: %s", got)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if code := post(`not json`); code != http.StatusBadRequest {
+		t.Errorf("bad JSON: status %d, want 400", code)
+	}
+}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EYES, GAZE_RADIUS, GRID_W } from '../../src/scene/constants/grid.ts';
 import { frameAt } from '../../src/scene/frames.ts';
-import { confine, gazeAt, opaqueNear } from '../../src/scene/geometry.ts';
+import { clear, confine, gazeAt, opaqueNear } from '../../src/scene/geometry.ts';
 
 test('gaze picks one of eight directions near the face and ignores a far pointer', () => {
   assert.deepEqual(gazeAt(0, 1), { x: 0, y: 0 });
@@ -30,4 +30,14 @@ test('confine keeps the box on the monitor and names the walls it hit', () => {
     y: 0,
     walls: ['left'],
   });
+});
+
+test('clear moves a box off an obstacle the shortest way that stays on the screen', () => {
+  const area = { x: 0, y: 0, width: 1000, height: 800 };
+  const clocks = { x: 900, y: 700, width: 80, height: 80 };
+  assert.equal(clear({ x: 700, y: 700, width: 100, height: 80 }, clocks, 10, area, 'xy'), undefined);
+  assert.deepEqual(clear({ x: 850, y: 700, width: 100, height: 80 }, clocks, 10, area, 'xy'), { x: 790, y: 700 });
+  // Right of the clocks there is no room, so it goes left even from their right half.
+  assert.deepEqual(clear({ x: 930, y: 700, width: 60, height: 80 }, clocks, 10, area, 'x'), { x: 830, y: 700 });
+  assert.deepEqual(clear({ x: 900, y: 650, width: 80, height: 80 }, clocks, 10, area, 'y'), { x: 900, y: 610 });
 });

@@ -172,6 +172,7 @@ test('the neglect stages draw their own scenery', () => {
   has('cobweb', PAL.zed, PAL.ink);
   has('overgrown', PAL.green, PAL.cheek, PAL.yellow);
   has('snowedIn', PAL.white);
+  has('grandpa', PAL.white, PAL.brown);
 });
 
 test('long legs lift the body while the feet stay on the floor', () => {

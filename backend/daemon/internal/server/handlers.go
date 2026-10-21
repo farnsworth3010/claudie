@@ -46,6 +46,24 @@ func (s *Server) hook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// postStatusLine takes what Claude Code hands its status line, sent on by the plugin's wrapper.
+func (s *Server) postStatusLine(w http.ResponseWriter, r *http.Request) {
+	body, ok := readJSONBody(w, r)
+	if !ok {
+		return
+	}
+	changed, err := s.core.Limits(body)
+	if err != nil {
+		slog.Error("apply limits", "err", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if changed {
+		s.changed()
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // state answers with the current snapshot.
 func (s *Server) state(w http.ResponseWriter, _ *http.Request) {
 	snap, err := s.snapshot()

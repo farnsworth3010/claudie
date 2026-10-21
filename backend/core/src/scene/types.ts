@@ -1,3 +1,4 @@
+import type { Limits } from '../limits/types.ts';
 import type { Agent, Session } from '../session/types.ts';
 import type { Settings } from '../settings/types.ts';
 import type { Crew } from './stage/crew.ts';
@@ -83,6 +84,7 @@ export type Clip =
   | 'longLegs'
   | 'elder'
   | 'skeleton'
+  | 'grandpa'
   | 'cobweb'
   | 'sprout'
   | 'overgrown'
@@ -295,10 +297,16 @@ export interface Screen {
   readonly area: Rect; // where the Clawds may go
 }
 
-export interface Anchor {
+// Where something stands: how far its bottom-right corner is from its screen's.
+export interface Corner {
   readonly screen: number | null; // the first screen when it is gone
   readonly right: number;
   readonly bottom: number;
+}
+
+// Where the crews stand, and the usage limit clocks, which stand apart from them.
+export interface Anchor extends Corner {
+  readonly clocks?: Corner;
 }
 
 export type Action =
@@ -334,6 +342,7 @@ export interface StageSnapshot {
   readonly now: number;
   readonly sessions: Session[];
   readonly settings?: unknown;
+  readonly limits?: Limits;
 }
 
 // A subagent on screen; `leftAt` once it finished and walks its result over.
@@ -366,6 +375,31 @@ export interface Drag {
   boxX: number; // where the upright box was when the drag began
   boxY: number;
   moved: boolean;
+}
+
+// The usage limit clocks in the hand; `at` and `screen` once it has moved them, and how fast they
+// went at `t`, for a throw.
+export interface ClockDrag {
+  readonly x: number;
+  readonly y: number;
+  readonly fromX: number; // where the clocks' top-left corner was when the drag began
+  readonly fromY: number;
+  moved: boolean;
+  at?: Point;
+  screen?: Screen;
+  vx: number;
+  vy: number;
+  t: number;
+}
+
+// The usage limit clocks thrown or falling, on their screen; `at` is the last step's time.
+export interface ClockFlight {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  readonly screen: Screen;
+  at: number;
 }
 
 // The crew box trailing the pointer while it is dragged, kept until it settles after the release.

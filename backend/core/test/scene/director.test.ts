@@ -106,7 +106,7 @@ test('a dialog ignored for too long brings on antics with its bubble kept up, pl
   assert.equal(director(waiting, waiting.since + 60_000, { antics: false }).clip, 'alert');
 });
 
-test('a long-idle mascot gathers cobwebs, gets overgrown, snowed in, then stays bones', () => {
+test('a long-idle mascot gathers cobwebs, gets overgrown, snowed in, then grows old for good', () => {
   const idle = session({ mood: 'done' });
   const at = (min: number) => director(idle, idle.since + min * 60_000);
   assert.equal(at(4).clip, 'sleep');
@@ -120,11 +120,11 @@ test('a long-idle mascot gathers cobwebs, gets overgrown, snowed in, then stays 
   assert.equal(at(13.5).clip, 'snowedIn');
   assert.deepEqual(
     [17.1, 60, 600].map((m) => at(m).clip),
-    ['skeleton', 'skeleton', 'skeleton'],
+    ['grandpa', 'grandpa', 'grandpa'],
   );
   assert.deepEqual(
     NEGLECT.map(([, clip]) => clip),
-    ['cobweb', 'overgrown', 'snowedIn', 'skeleton'],
+    ['cobweb', 'overgrown', 'snowedIn', 'grandpa'],
   );
   assert.equal(director(idle, idle.since + 20 * 60_000, { neglect: false }).clip, 'sleep');
 });
@@ -158,6 +158,7 @@ test('a dragged crew walks along unless it shows a state of its own', () => {
   for (const clip of [
     'sleep',
     'skeleton',
+    'grandpa',
     'cobweb',
     'snowedIn',
     'highJump',
@@ -237,7 +238,7 @@ test('the idle timings move the yawn, the neglect and the antics, keeping their 
   assert.equal(at(45, quick), 'sleep');
   assert.equal(at(7, quick), 'lookAround', 'a third of the way to sleep');
   assert.equal(at(61, quick), 'cobweb');
-  assert.equal(at((60 * 17) / 5 + 1, quick), 'skeleton', 'the bones in proportion');
+  assert.equal(at((60 * 17) / 5 + 1, quick), 'grandpa', 'old age in proportion');
   assert.equal(at(46), 'yawn', 'left alone, the built-in timings');
   const asking = session({ activity: 'asking', tool: 'AskUserQuestion' });
   assert.equal(director(asking, asking.since + 11_000, quick).bubble, 'question');

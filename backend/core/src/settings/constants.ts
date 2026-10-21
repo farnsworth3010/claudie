@@ -17,6 +17,9 @@ export const DEFAULT_SETTINGS: Settings = {
   wander: false,
   stroll: false,
   anywhere: false,
+  limits: false,
+  clockInertia: false,
+  clockGravity: false,
   sleepAfter: 45,
   neglectAfter: 300,
   patience: 30,
@@ -45,4 +48,7 @@ export const FLAGS: readonly SettingsFlag[] = [
   'wander',
   'stroll',
   'anywhere',
+  'limits',
+  'clockInertia',
+  'clockGravity',
 ];

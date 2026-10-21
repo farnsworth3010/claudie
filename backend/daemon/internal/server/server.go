@@ -54,6 +54,7 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("GET /events", s.events)
 	mux.HandleFunc("GET /settings", s.getSettings)
 	mux.HandleFunc("POST /settings", s.postSettings)
+	mux.HandleFunc("POST /statusline", s.postStatusLine)
 	mux.HandleFunc("GET /version", s.getVersion)
 	mux.HandleFunc("POST /quit", s.postQuit)
 	mux.Handle("GET /", web.Handler()) // the API's own routes are more specific and win

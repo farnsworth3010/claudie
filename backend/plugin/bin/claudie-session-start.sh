@@ -6,7 +6,8 @@
 # First it makes sure the daemon of the plugin's version runs: it downloads the binary for this
 # platform from the plugin's GitHub release once, and `claudie-daemon start` starts it in the
 # background or replaces an older one. So installing or updating the plugin is all the setup there
-# is. It never fails the session: no daemon only means no mascot and a warning.
+# is. It never fails the session: no daemon only means no mascot and a warning. It also keeps the
+# status line wrapper of /claudie:limits up to date in the data directory.
 #   CLAUDIE_PORT          the daemon's port (47321)
 #   CLAUDIE_DAEMON        a daemon binary to use instead of the released one
 #   CLAUDIE_RELEASE_URL   where to download the binaries from instead of the plugin's release
@@ -14,6 +15,7 @@ set -u
 port=${CLAUDIE_PORT:-47321}
 here=$(cd "$(dirname "$0")" && pwd)
 manifest="$here/../.claude-plugin/plugin.json"
+data=${CLAUDE_PLUGIN_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/claudie}
 event=$(cat)
 
 send() {
@@ -46,7 +48,7 @@ daemon() {
   if [ -n "${CLAUDIE_DAEMON:-}" ]; then echo "$CLAUDIE_DAEMON"; return; fi
   version=$(manifest_field version)
   name="claudie-daemon-$(platform)" || return 1
-  dir="${CLAUDE_PLUGIN_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/claudie}/bin"
+  dir="$data/bin"
   path="$dir/$name-$version"
   if [ ! -x "$path" ]; then
     url=${CLAUDIE_RELEASE_URL:-"$(manifest_field repository)/releases/download/v$version"}
@@ -67,9 +69,25 @@ warn() {
   printf '{"systemMessage":"%s"}\n' "$1"
 }
 
+# Copied whole, then renamed, so a status line running meanwhile never reads half of it.
+statusline() {
+  mkdir -p "$data" && cp "$here/claudie-statusline.sh" "$data/claudie-statusline.sh.new" &&
+    mv "$data/claudie-statusline.sh.new" "$data/claudie-statusline.sh"
+}
+
+# statusline-inner is there once /claudie:limits set the wrapper up; something may have replaced it since.
+replaced() {
+  [ -e "$data/statusline-inner" ] &&
+    ! grep -q claudie-statusline "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" 2> /dev/null
+}
+
 # `start` does nothing when this version already runs, and replaces a daemon of another one.
 if bin=$(daemon); then
   CLAUDIE_PORT=$port "$bin" start > /dev/null 2>&1
+  statusline
+  if replaced; then
+    warn "Claudie: the status line no longer passes the usage limits on, so the limit clocks stand still. Run /claudie:limits to set it up again."
+  fi
 else
   warn "Claudie: could not download the daemon $(manifest_field version) for this machine, so no mascots. See $(manifest_field repository)#installing-without-a-release"
 fi

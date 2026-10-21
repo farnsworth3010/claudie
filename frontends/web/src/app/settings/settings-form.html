@@ -1,29 +1,24 @@
-@for (spec of sliders; track spec.key) {
-  <app-slider-field
-    [spec]="spec"
-    [range]="range(spec)"
-    [value]="values()[spec.key]"
-    (moved)="slide(spec, $event)"
-    (held)="hold(spec.key, $event)"
-  />
-}
-<div class="toggles">
-  @for (flag of flags; track flag) {
-    <label>
-      <input type="checkbox" [checked]="settings()[flag]" (change)="toggle(flag, $event)" />
-      {{ labels[flag] }}
-    </label>
-  }
-</div>
-<h3>Idle timings</h3>
-@for (spec of timings; track spec.key) {
-  <app-slider-field
-    [spec]="spec"
-    [range]="range(spec)"
-    [value]="values()[spec.key]"
-    (moved)="slide(spec, $event)"
-    (held)="hold(spec.key, $event)"
-  />
+@for (group of groups; track group.title; let first = $first) {
+  <details [open]="first">
+    <summary>{{ group.title }}</summary>
+    <div class="group">
+      @for (spec of group.sliders; track spec.key) {
+        <app-slider-field
+          [spec]="spec"
+          [range]="range(spec)"
+          [value]="values()[spec.key]"
+          (moved)="slide(spec, $event)"
+          (held)="hold(spec.key, $event)"
+        />
+      }
+      @for (flag of group.flags; track flag) {
+        <label>
+          <input type="checkbox" [checked]="settings()[flag]" (change)="toggle(flag, $event)" />
+          {{ labels[flag] }}
+        </label>
+      }
+    </div>
+  </details>
 }
 <button type="button" class="reset" [class.confirming]="confirming()" (click)="reset()">
   {{ confirming() ? 'Click again to reset' : 'Reset to defaults' }}
