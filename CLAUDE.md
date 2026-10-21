@@ -83,6 +83,11 @@ Build the daemon from `backend/daemon/`, always with `-o`: a plain `go build` dr
 go build -o bin/claudie-daemon ./src
 ```
 
+A reinstalled GNOME extension that is already enabled keeps running the old code: Wayland can't restart the shell, disable/enable reuses the module cached by its URI, and GJS refuses a query string in a module URI (`?t=…` is "Module not found"). To load the new build in the running session, paste this line in Looking Glass (Alt+F2, `lg`, Evaluator); `1` means active. It imports a uniquely named copy of `extension.js` (the bundle has only `gi://` and `resource://` imports) and swaps it in. Looking Glass splits the input on `;`, so keep `;` out of strings. An agent can't run it: the shell refuses `Eval` and `Screenshot` over D-Bus, so the maintainer pastes it.
+```js
+const uuid = 'claudie@farnsworth3010.github.io', em = Main.extensionManager, ext = em.lookup(uuid); await em._callExtensionDisable(uuid); const copy = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_tmp_dir(), `claudie-${Date.now()}.js`])); ext.dir.get_child('extension.js').copy(copy, Gio.FileCopyFlags.OVERWRITE, null, null); const mod = await import(copy.get_uri()); copy.delete(null); ext.stateObj = new mod.default({...ext.metadata, dir: ext.dir, path: ext.path}); await em._callExtensionEnable(uuid); ext.state
+```
+
 ## Requirements that shape decisions
 - Installing must be trivial: on the machine with Claude Code only `/plugin install`, nothing else to set up (no Node, no `jq`, no systemd).
 - Keep platform-specific code inside its client; the daemon, the core and the plugin stay portable across the systems Claude Code runs on. Overlays exist for macOS and GNOME so far, and the settings page is for settings and showing off, not a second overlay.
