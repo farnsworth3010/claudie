@@ -2,11 +2,9 @@
 # SessionStart hook downloads for its version, the GNOME extension, and the Mac app built after it.
 name: release
 
-# The tag trigger is off for now, releases are made by hand; a workflow needs some trigger to stay valid.
 on:
-  # push:
-  #   tags: ['v*']
-  workflow_dispatch:
+  push:
+    tags: ['v*']
 
 permissions:
   contents: write
