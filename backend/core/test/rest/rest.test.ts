@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { restDone, restDue, restSample, restSkip, restStart, restUnsampled } from '../../src/rest/rest.ts';
+import { restDone, restDue, restLeft, restSample, restSkip, restStart, restUnsampled } from '../../src/rest/rest.ts';
 import type { Rest } from '../../src/rest/types.ts';
 
 const MIN = 60_000;
@@ -59,4 +59,14 @@ test('without samples nothing is due: none yet, or none for a while', () => {
   assert.equal(restDue(restUnsampled(0), 99 * MIN, timing), false);
   assert.equal(restDue(work(restUnsampled(0), 0, 50 * MIN), 50 * MIN, timing), true);
   assert.equal(restDue(work(restStart(0), 0, 50 * MIN), 56 * MIN, timing), false);
+});
+
+test('the time left counts down to the sign, then to the end of a snooze; unknown without samples', () => {
+  const rest = work(restStart(0), 0, 20 * MIN);
+  assert.equal(restLeft(rest, 20 * MIN, timing), 30 * MIN);
+  const due = work(rest, 20 * MIN, 50 * MIN);
+  assert.equal(restLeft(due, 50 * MIN, timing), 0);
+  assert.equal(restLeft(restSkip(due, 50 * MIN, timing), 51 * MIN, timing), 4 * MIN);
+  assert.equal(restLeft(restUnsampled(0), 1000, timing), undefined);
+  assert.equal(restLeft(rest, 26 * MIN, timing), undefined, 'samples stopped');
 });

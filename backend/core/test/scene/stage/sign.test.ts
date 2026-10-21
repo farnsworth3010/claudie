@@ -118,3 +118,17 @@ test('turned off, there is no sign; the sliders set the minutes on it', () => {
   const wide = signLayout(30, 10);
   assert.ok(tick().sprites.some((sprite) => sprite.w === wide.w && sprite.h === wide.h));
 });
+
+test('hovering any Clawd tells the time until the break; turned off, it does not', () => {
+  const { stage, tick, work, sync } = setup();
+  work(20);
+  const view = tick();
+  const [, second] = view.sprites;
+  const on = { x: second.x + 10 * second.px, y: second.y + 15 * second.px };
+  assert.equal(stage.hit(on.x, on.y), true);
+  assert.match(tick(16, on).tooltip?.text ?? '', /\nbreak in 30 min$/);
+  work(30);
+  assert.match(tick(16, on).tooltip?.text ?? '', /\ntime for a break$/);
+  sync([session('a', 1), session('b', 2)], { breaks: false });
+  assert.doesNotMatch(tick(16, on).tooltip?.text ?? '', /break/);
+});

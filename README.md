@@ -194,7 +194,7 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 | `limits` | false | Clocks of the 5-hour and weekly usage limits; they need the status line set up, see [Usage limits](#usage-limits) |
 | `clockInertia` | false | Thrown clocks keep flying, slow down and bounce off the screen's edges |
 | `clockGravity` | false | Clocks let go of fall to the bottom of their screen |
-| `breaks` | true | After `breakAfter` at the screen, the first Clawd holds up a sign asking for a break, and the idle ones yawn. **Skip** puts it off by `breakSnooze`, **Done** starts the count over, and so does `breakAway` without touching the keyboard or mouse (a locked screen counts). The overlay reads the system's idle time, so only the time you are at this machine counts; with no Clawd on screen the sign waits for one |
+| `breaks` | true | After `breakAfter` at the screen, the first Clawd holds up a sign asking for a break, and the idle ones yawn. **Skip** puts it off by `breakSnooze`, **Done** starts the count over, and so does `breakAway` without touching the keyboard or mouse (a locked screen counts). The overlay reads the system's idle time, so only the time you are at this machine counts; with no Clawd on screen the sign waits for one. Hover any Clawd for the time left until the break |
 | `breakAfter` | 3000 | Seconds at the screen before the break sign, 300 to 7200 |
 | `breakSnooze` | 300 | Seconds **Skip** puts the sign off by, 60 to 1800 |
 | `breakAway` | 300 | Seconds without input that count as a break, 60 to 1800 |

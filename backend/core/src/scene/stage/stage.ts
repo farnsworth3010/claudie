@@ -1,5 +1,5 @@
 import type { Limits } from '../../limits/types.ts';
-import { restDone, restDue, restSample, restSkip, restUnsampled } from '../../rest/rest.ts';
+import { restDone, restDue, restLeft, restSample, restSkip, restUnsampled } from '../../rest/rest.ts';
 import type { Rest } from '../../rest/types.ts';
 import type { Session } from '../../session/types.ts';
 import { DEFAULT_SETTINGS, RANGES } from '../../settings/constants.ts';
@@ -64,7 +64,7 @@ import { moveAlong, nearest, placeAt, type Spot, spotAt, type Track, track } fro
 import { Crew } from './crew.ts';
 import { fly } from './flight.ts';
 import { Gauges } from './gauges.ts';
-import { crewLabel } from './label.ts';
+import { breakLabel, crewLabel } from './label.ts';
 import { toUpright, turnedSize, turnPixels, turnRect } from './orient.ts';
 import { Sign } from './sign.ts';
 import type { Sprite } from './sprite.ts';
@@ -378,13 +378,17 @@ export class Stage {
     this.sign.draw(Math.round(at.x), Math.round(at.y), pointer);
   }
 
-  // A clock's tooltip over the clock, a crew's over the whole crew, as it stands on screen.
+  // A clock's tooltip over the clock, a crew's over the whole crew, as it stands on screen; a crew's
+  // ends with the time until the break sign.
   private tooltipAt(p: Point, crews: Crew[], now: number): { text: string; rect: Rect } | undefined {
     const clock = this.gauges.hovered(p.x, p.y, now);
     if (clock) return clock;
     const upright = this.upright(p);
     const crew = crews.find((candidate) => candidate.hit(upright.x, upright.y));
-    return crew ? { text: crewLabel(crew.session), rect: turnRect(this.edge, this.box, crew) } : undefined;
+    if (!crew) return undefined;
+    const left = this.settings.breaks ? restLeft(this.rest, this.clock(), this.settings) : undefined;
+    const text = left === undefined ? crewLabel(crew.session) : `${crewLabel(crew.session)}\n${breakLabel(left)}`;
+    return { text, rect: turnRect(this.edge, this.box, crew) };
   }
 
   private crewHit(x: number, y: number): boolean {

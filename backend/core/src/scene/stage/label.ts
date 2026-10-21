@@ -29,6 +29,11 @@ export function limitLabel(kind: LimitKind, window: LimitWindow, now: number): s
   );
 }
 
+// The last line of a crew's tooltip: how long until the break sign goes up.
+export function breakLabel(left: number): string {
+  return left > 0 ? `break in ${timeLeft(left)}` : 'time for a break';
+}
+
 function timeLeft(ms: number): string {
   const minutes = Math.max(1, Math.ceil(ms / 60_000));
   const days = Math.floor(minutes / 1440);

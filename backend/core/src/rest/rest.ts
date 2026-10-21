@@ -26,6 +26,12 @@ export function restDue(rest: Rest, now: number, timing: RestTiming): boolean {
   );
 }
 
+// How long until the next reminder, 0 once it is up; undefined while nothing is known of the person.
+export function restLeft(rest: Rest, now: number, timing: RestTiming): number | undefined {
+  if (now - rest.lastAt >= timing.breakAway * 1000) return undefined;
+  return Math.max(0, rest.since + timing.breakAfter * 1000 - now, (rest.snoozedUntil ?? now) - now);
+}
+
 export function restSkip(rest: Rest, now: number, timing: RestTiming): Rest {
   return { ...rest, snoozedUntil: now + timing.breakSnooze * 1000 };
 }
