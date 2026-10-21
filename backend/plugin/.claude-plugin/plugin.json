@@ -1,6 +1,6 @@
 {
   "name": "claudie",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pixel-art Clawds over your windows showing what every Claude Code session is doing",
   "author": { "name": "farnsworth3010" },
   "repository": "https://github.com/farnsworth3010/claudie",
