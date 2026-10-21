@@ -58,3 +58,12 @@ test('the usage limit clocks are off unless turned on', () => {
   assert.deepEqual(settingsPatch({ limits: true }), { limits: true });
   assert.equal(settingsPatch({ limits: 1 }), undefined);
 });
+
+test('breaks are on, every 50 minutes, put off and taken in 5', () => {
+  const settings = settingsFrom({});
+  assert.equal(settings.breaks, true);
+  assert.deepEqual([settings.breakAfter, settings.breakSnooze, settings.breakAway], [3000, 300, 300]);
+  assert.equal(settingsFrom({ breakAfter: 10 }).breakAfter, 300);
+  assert.equal(settingsFrom({ breakAway: 99_999 }).breakAway, 1800);
+  assert.deepEqual(settingsPatch({ breaks: false, breakSnooze: 600 }), { breaks: false, breakSnooze: 600 });
+});

@@ -10,6 +10,9 @@ export type Side = 'left' | 'right' | 'top' | 'bottom';
 
 export type Bubble = 'bang' | 'question';
 
+// The break sign's buttons: put the reminder off, or a break was taken.
+export type SignButton = 'skip' | 'done';
+
 export type Fx = 'bang' | 'question' | 'z1' | 'z2' | 'z3' | 'heart1' | 'heart2' | 'stars' | 'chat1' | 'chat2' | 'chat3';
 
 export type HammerPhase = 'up' | 'hit' | 'rest';

@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 
 // Wires the daemon's event stream into the scene and carries out what the scene asks for.
 @MainActor
@@ -7,6 +8,7 @@ final class Controller: NSObject, NSApplicationDelegate {
   private var overlay: Overlay?
   private var stream: EventStream?
   private var chirp: NSSound?
+  private var idleTimer: Timer?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard let url = Bundle.module.url(forResource: "scene", withExtension: "js"),
@@ -32,6 +34,21 @@ final class Controller: NSObject, NSApplicationDelegate {
     stream.start()
     self.overlay = overlay
     self.stream = stream
+    startIdleTimer(engine)
+  }
+
+  // Apart from the frame timer, which stops with nothing on screen; the time at the screen counts anyway.
+  // Reading the idle time needs no Accessibility permission, unlike watching key events.
+  private func startIdleTimer(_ engine: Engine) {
+    let anyInput = CGEventType(rawValue: ~0)!
+    let timer = Timer(timeInterval: Config.idlePollInterval, repeats: true) { _ in
+      MainActor.assumeIsolated {
+        engine.idle(CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput) * 1000)
+      }
+    }
+    timer.tolerance = Config.idlePollTolerance
+    RunLoop.main.add(timer, forMode: .common)
+    idleTimer = timer
   }
 
   // The daemon serves the settings page; the browser opens it.

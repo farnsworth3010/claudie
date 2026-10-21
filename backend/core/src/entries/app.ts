@@ -18,6 +18,7 @@ const api = {
   motion: (x: number, y: number): void => stage.motion(x, y),
   release: (): void => stage.release(),
   zoom: (delta: number): void => stage.zoom(delta),
+  idle: (idleMs: number): void => stage.idle(idleMs),
   takeActions: (): string => JSON.stringify(stage.takeActions()),
   // The WAV bytes of the sound three clicks make.
   chirp: (): string => JSON.stringify([...chirpWav()]),

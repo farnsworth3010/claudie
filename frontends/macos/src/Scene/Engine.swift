@@ -65,6 +65,11 @@ final class Engine {
     invoke("zoom", [delta])
   }
 
+  // How long since the last keyboard or mouse input, for the break reminder.
+  func idle(_ idleMs: Double) {
+    invoke("idle", [idleMs])
+  }
+
   func takeActions() -> [Action] {
     let json = invoke("takeActions")?.toString() ?? "[]"
     let objects = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [[String: Any]] ?? []

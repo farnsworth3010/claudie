@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, RANGES } from '@claudie/core/settings/constants.ts';
 import type { Settings, SettingsFlag, SettingsNumber } from '@claudie/core/settings/types.ts';
 import { Daemon } from '../daemon/daemon.ts';
 import {
+  BREAK_SLIDERS,
   flagLabels,
   GROUPS,
   RESET_CONFIRM_MS,
@@ -33,7 +34,7 @@ export class SettingsForm {
     source: this.settings,
     computation: (s, previous) =>
       Object.fromEntries(
-        [...SLIDERS, ...TIMING_SLIDERS].map(({ key, scale }) => [
+        [...SLIDERS, ...TIMING_SLIDERS, ...BREAK_SLIDERS].map(({ key, scale }) => [
           key,
           this.held === key && previous ? previous.value[key] : Math.round(s[key] * scale),
         ]),

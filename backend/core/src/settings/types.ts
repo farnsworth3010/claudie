@@ -20,13 +20,28 @@ export interface Settings {
   readonly limits: boolean; // clocks of the 5-hour and weekly usage limits, apart from the crews, fed by the status line
   readonly clockInertia: boolean; // the clocks let go of keep flying, slow down and bounce off the edges
   readonly clockGravity: boolean; // the clocks let go of fall to the bottom of their screen
+  readonly breaks: boolean; // a Clawd holds up a sign asking for a break after long at the screen
   // Idle timings, in seconds.
   readonly sleepAfter: number; // idle this long, it yawns and falls asleep; it looks around a third of the way
   readonly neglectAfter: number; // idle this long, cobwebs; the flower, the snow and the bones follow in proportion
   readonly patience: number; // a dialog unanswered this long sets off the antics
+  // Break timings, in seconds.
+  readonly breakAfter: number; // at the screen this long, it is time for a break
+  readonly breakSnooze: number; // what skipping the sign puts it off by
+  readonly breakAway: number; // no keyboard or mouse input this long counts as a break
 }
 
-export type SettingsNumber = 'size' | 'opacity' | 'miniSize' | 'pace' | 'sleepAfter' | 'neglectAfter' | 'patience';
+export type SettingsNumber =
+  | 'size'
+  | 'opacity'
+  | 'miniSize'
+  | 'pace'
+  | 'sleepAfter'
+  | 'neglectAfter'
+  | 'patience'
+  | 'breakAfter'
+  | 'breakSnooze'
+  | 'breakAway';
 
 export type SettingsFlag =
   | 'overFullscreen'
@@ -43,4 +58,5 @@ export type SettingsFlag =
   | 'anywhere'
   | 'limits'
   | 'clockInertia'
-  | 'clockGravity';
+  | 'clockGravity'
+  | 'breaks';

@@ -194,6 +194,10 @@ The daemon keeps the settings in `~/.config/claudie/settings.json` and sends the
 | `limits` | false | Clocks of the 5-hour and weekly usage limits; they need the status line set up, see [Usage limits](#usage-limits) |
 | `clockInertia` | false | Thrown clocks keep flying, slow down and bounce off the screen's edges |
 | `clockGravity` | false | Clocks let go of fall to the bottom of their screen |
+| `breaks` | true | After `breakAfter` at the screen, the first Clawd holds up a sign asking for a break, and the idle ones yawn. **Skip** puts it off by `breakSnooze`, **Done** starts the count over, and so does `breakAway` without touching the keyboard or mouse (a locked screen counts). The overlay reads the system's idle time, so only the time you are at this machine counts; with no Clawd on screen the sign waits for one |
+| `breakAfter` | 3000 | Seconds at the screen before the break sign, 300 to 7200 |
+| `breakSnooze` | 300 | Seconds **Skip** puts the sign off by, 60 to 1800 |
+| `breakAway` | 300 | Seconds without input that count as a break, 60 to 1800 |
 
 ### Usage limits
 With `limits` on, two pixel clocks show up: `5h` for the 5-hour limit, `wk` for the weekly one. They stand apart from the Clawds, in the bottom-right corner at first: drag them where you like and they stay there, never walking or clinging to an edge; with `clockInertia` and `clockGravity` they can be thrown and fall, like the group with `inertia` and `gravity`. The Clawds and the clocks never overlap: the group steps aside for the clocks, and clocks dragged onto the group make way. How full a dial is shows how much of the limit is used: green, yellow from 50%, red from 80%. Hover a clock for the share used and when it resets. Only Pro and Max plans have these limits.

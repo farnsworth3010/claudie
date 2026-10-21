@@ -1,4 +1,5 @@
 import { GLYPH_H, GLYPH_W, GLYPHS } from '../art/digits.ts';
+import { LETTER_W, LETTERS } from '../art/letters.ts';
 import { PAL } from '../constants/look.ts';
 
 export interface Pixels {
@@ -28,4 +29,19 @@ export function outlinedText(text: string): Pixels {
     }
   }
   return { w, h, pixels };
+}
+
+// The 5×7 letters in one colour into `target`, top-left at `x`, `y`; a column between them.
+export function printText(target: Pixels, x: number, y: number, text: string, colour: number): void {
+  [...text].forEach((ch, i) => {
+    LETTERS[ch].forEach((row, dy) => {
+      [...row].forEach((dot, dx) => {
+        if (dot === '#') target.pixels[(y + dy) * target.w + x + i * (LETTER_W + 1) + dx] = colour;
+      });
+    });
+  });
+}
+
+export function textWidth(text: string): number {
+  return text.length * (LETTER_W + 1) - 1;
 }

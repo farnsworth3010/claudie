@@ -14,6 +14,10 @@ enum Config {
   // How long the display link may stay silent before the slow timer ticks again.
   static let displayLinkStallThreshold: CFTimeInterval = 0.1
 
+  // How often the time since the last input is read, for the break reminder.
+  static let idlePollInterval: TimeInterval = 5
+  static let idlePollTolerance: TimeInterval = 1
+
   static let panelMargin: CGFloat = 4
   // A touchpad reports points, a wheel notch reports one step.
   static let touchpadScrollDivisor = 10.0

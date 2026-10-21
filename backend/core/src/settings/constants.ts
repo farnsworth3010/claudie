@@ -20,9 +20,13 @@ export const DEFAULT_SETTINGS: Settings = {
   limits: false,
   clockInertia: false,
   clockGravity: false,
+  breaks: true,
   sleepAfter: 45,
   neglectAfter: 300,
   patience: 30,
+  breakAfter: 3000,
+  breakSnooze: 300,
+  breakAway: 300,
 };
 
 // What each number may be; anything outside is brought back in.
@@ -34,6 +38,9 @@ export const RANGES: Readonly<Record<SettingsNumber, readonly [number, number]>>
   sleepAfter: [10, 600],
   neglectAfter: [60, 3600],
   patience: [5, 300],
+  breakAfter: [300, 7200],
+  breakSnooze: [60, 1800],
+  breakAway: [60, 1800],
 };
 export const FLAGS: readonly SettingsFlag[] = [
   'overFullscreen',
@@ -51,4 +58,5 @@ export const FLAGS: readonly SettingsFlag[] = [
   'limits',
   'clockInertia',
   'clockGravity',
+  'breaks',
 ];

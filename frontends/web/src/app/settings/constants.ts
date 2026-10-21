@@ -20,6 +20,7 @@ const FLAG_LABELS: Readonly<Record<SettingsFlag, string>> = {
     'Usage limits: 5-hour and weekly clocks, dragged apart from the Clawds (needs /claudie:limits, Pro and Max only)',
   clockInertia: 'Clock inertia: thrown clocks keep flying and bounce off the edges',
   clockGravity: 'Clock gravity: clocks let go of fall to the bottom of the screen',
+  breaks: 'Breaks: a Clawd holds up a sign after long at the screen (Skip puts it off, Done starts over)',
 };
 
 // What the same settings are called on a Mac.
@@ -62,6 +63,12 @@ export const TIMING_SLIDERS: readonly SliderSpec[] = [
   { key: 'patience', label: 'Antics after', scale: 1, step: 5, caption: duration },
 ];
 
+export const BREAK_SLIDERS: readonly SliderSpec[] = [
+  { key: 'breakAfter', label: 'Break every', scale: 1 / 60, step: 1, caption: (v) => `${v} min` },
+  { key: 'breakSnooze', label: 'Skip puts it off by', scale: 1 / 60, step: 1, caption: (v) => `${v} min` },
+  { key: 'breakAway', label: 'Away this long is a break', scale: 1 / 60, step: 1, caption: (v) => `${v} min` },
+];
+
 // The form in folding sections, so it stays about as tall as the preview beside it.
 export interface SettingsGroup {
   readonly title: string;
@@ -75,4 +82,5 @@ export const GROUPS: readonly SettingsGroup[] = [
   { title: 'Movement', sliders: [], flags: ['inertia', 'gravity', 'wander', 'anywhere'] },
   { title: 'Idle', sliders: TIMING_SLIDERS, flags: ['antics', 'neglect', 'stroll'] },
   { title: 'Usage limits', sliders: [], flags: ['limits', 'clockInertia', 'clockGravity'] },
+  { title: 'Breaks', sliders: BREAK_SLIDERS, flags: ['breaks'] },
 ];

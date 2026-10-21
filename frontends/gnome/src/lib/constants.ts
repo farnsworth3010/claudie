@@ -5,6 +5,9 @@ export const FAST_TICK_MS = 16;
 // Slow ticks with nothing to show before the timer stops; the next snapshot starts it again.
 export const IDLE_TICKS = 20;
 
+// How often the time since the last input is read, for the break reminder.
+export const IDLE_POLL_S = 5;
+
 export const RECONNECT_FIRST_MS = 1000;
 export const RECONNECT_MAX_MS = 10_000;
 

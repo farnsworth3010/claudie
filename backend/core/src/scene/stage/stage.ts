@@ -1,4 +1,6 @@
 import type { Limits } from '../../limits/types.ts';
+import { restDone, restDue, restSample, restSkip, restUnsampled } from '../../rest/rest.ts';
+import type { Rest } from '../../rest/types.ts';
 import type { Session } from '../../session/types.ts';
 import { DEFAULT_SETTINGS, RANGES } from '../../settings/constants.ts';
 import { settingsFrom } from '../../settings/settings.ts';
@@ -7,6 +9,7 @@ import { clamp } from '../../shared/math.ts';
 import { CLOCKS_CORNER } from '../constants/clock.ts';
 import { FOLLOW_MS } from '../constants/crew.ts';
 import { GRID_H, GRID_W } from '../constants/grid.ts';
+import { SIGN_GAP, SIGN_SCALE, SIGN_YAWN_EVERY_MS, SIGN_YAWN_STAGGER_MS } from '../constants/sign.ts';
 import {
   APPROACH_SPEED,
   BUMP_SPEED,
@@ -31,6 +34,7 @@ import {
 import { WALK_MS } from '../constants/timing.ts';
 import { glide } from '../crew-layout.ts';
 import { socialCues } from '../director.ts';
+import { signLayout } from '../draw/sign.ts';
 import { clear, confine } from '../geometry.ts';
 import { pickLook } from '../look.ts';
 import type {
@@ -40,6 +44,7 @@ import type {
   ClockDrag,
   ClockFlight,
   Confined,
+  Cue,
   Drag,
   Frame,
   Inset,
@@ -50,6 +55,7 @@ import type {
   Roam,
   Screen,
   Side,
+  SignButton,
   SpriteDraw,
   StageSnapshot,
   View,
@@ -60,6 +66,7 @@ import { fly } from './flight.ts';
 import { Gauges } from './gauges.ts';
 import { crewLabel } from './label.ts';
 import { toUpright, turnedSize, turnPixels, turnRect } from './orient.ts';
+import { Sign } from './sign.ts';
 import type { Sprite } from './sprite.ts';
 
 export type { Anchor } from '../types.ts';
@@ -75,6 +82,9 @@ export class Stage {
   private readonly crews = new Map<string, Crew>(); // left to right, in order of arrival
   private readonly gauges = new Gauges(); // the usage limit clocks, apart from the crews
   private limits: Limits | undefined;
+  private readonly sign = new Sign(); // the break reminder, held up by one Clawd
+  private rest: Rest; // on the local clock, as the idle time it is fed
+  private signSince: number | null = null; // when the sign went up
   private clockDrag: ClockDrag | null = null;
   private clockFlight: ClockFlight | null = null;
   private readonly clock: () => number;
@@ -103,10 +113,16 @@ export class Stage {
     this.anchor = anchor ?? { screen: null, right: MARGIN, bottom: MARGIN };
     this.clock = clock;
     this.random = random;
+    this.rest = restUnsampled(clock());
   }
 
   setScreens(screens: Screen[]): void {
     this.screens = screens;
+  }
+
+  // `idleMs`: how long since the last keyboard or mouse input; the app samples it every few seconds.
+  idle(idleMs: number): void {
+    this.rest = restSample(this.rest, this.clock(), idleMs, this.settings);
   }
 
   // A daemon snapshot; an empty session list when it is down.
@@ -163,6 +179,7 @@ export class Stage {
       now,
       behaviour,
     );
+    const speaker = this.breakCues(crews, social, now);
     const upright = pointer && this.upright(pointer);
     let x = this.box.x;
     crews.forEach((crew, i) => {
@@ -187,9 +204,14 @@ export class Stage {
     for (const sprite of this.gauges.list) {
       if (sprite.frame) view.sprites.push(this.drawOf(sprite, sprite.frame, 'bottom'));
     }
+    this.raiseSign(speaker, pointer);
+    for (const sprite of this.sign.list) {
+      if (sprite.frame) view.sprites.push(this.drawOf(sprite, sprite.frame, 'bottom'));
+    }
     this.playBumps(now, bounds);
 
-    const tip = pointer && !this.drag && !this.clockDrag ? this.tooltipAt(pointer, crews, now) : undefined;
+    const overSign = !!pointer && this.sign.hit(pointer.x, pointer.y);
+    const tip = pointer && !this.drag && !this.clockDrag && !overSign ? this.tooltipAt(pointer, crews, now) : undefined;
     if (tip) view.tooltip = { text: tip.text, x: tip.rect.x + tip.rect.width / 2, y: tip.rect.y - TOOLTIP_GAP };
     view.fast =
       !!this.move || !!this.clockDrag?.moved || clocksFlying || roaming || crews.some((crew) => crew.animating);
@@ -198,13 +220,18 @@ export class Stage {
 
   // Whether the point lands on a drawn Clawd or clock, so the app should take the mouse there.
   hit(x: number, y: number): boolean {
-    return !!this.drag || !!this.clockDrag || this.gauges.hit(x, y) || this.crewHit(x, y);
+    return !!this.drag || !!this.clockDrag || this.sign.hit(x, y) || this.gauges.hit(x, y) || this.crewHit(x, y);
   }
 
-  // The clocks are drawn over the crews, so they are picked up first.
+  // The sign is drawn over everything, then the clocks over the crews, so they are picked up first.
   press(x: number, y: number): boolean {
     this.drag = null;
     this.clockDrag = null;
+    if (this.sign.hit(x, y)) {
+      const button = this.sign.buttonAt(x, y);
+      if (button) this.answer(button);
+      return false;
+    }
     if (this.gauges.hit(x, y)) {
       const at = this.clocksAt();
       this.clockFlight = null; // caught in flight, they are the pointer's again
@@ -293,6 +320,62 @@ export class Stage {
 
   private now(): number {
     return this.clock() + this.clockOffset;
+  }
+
+  private answer(button: SignButton): void {
+    const at = this.clock();
+    this.rest = button === 'skip' ? restSkip(this.rest, at, this.settings) : restDone(at);
+  }
+
+  // A break due: the first Clawd that isn't leaving holds up the sign and the idle ones yawn,
+  // over whatever they would do. Returns the speaker's index, -1 with no sign.
+  private breakCues(crews: Crew[], social: (Cue | undefined)[], now: number): number {
+    const due = this.settings.breaks && restDue(this.rest, this.clock(), this.settings);
+    const speaker = due ? crews.findIndex((crew) => crew.session.leavingAt === undefined) : -1;
+    if (speaker < 0) {
+      this.signSince = null;
+      return -1;
+    }
+    this.signSince ??= now;
+    const since = this.signSince;
+    crews.forEach((crew, i) => {
+      if (i === speaker) social[i] = { clip: 'alert', startedAt: since };
+      else if (crew.session.activity === 'idle' && crew.session.leavingAt === undefined) {
+        const offset = since + i * SIGN_YAWN_STAGGER_MS;
+        const startedAt = offset + Math.max(0, Math.floor((now - offset) / SIGN_YAWN_EVERY_MS)) * SIGN_YAWN_EVERY_MS;
+        if (now >= startedAt) social[i] = { clip: 'yawn', startedAt };
+      }
+    });
+    return speaker;
+  }
+
+  // The sign stands off the speaker's head, away from the edge its feet are on, kept on its screen.
+  private raiseSign(speaker: number, pointer: Point | null): void {
+    const crew = [...this.crews.values()][speaker];
+    if (!crew) {
+      this.sign.hide();
+      return;
+    }
+    const area = this.workArea();
+    const workMin = Math.round(this.settings.breakAfter / 60);
+    const snoozeMin = Math.round(this.settings.breakSnooze / 60);
+    const fit = Math.floor((area.width - 2 * MARGIN) / signLayout(workMin, snoozeMin).w);
+    this.sign.layout(workMin, snoozeMin, Math.max(1, Math.min(Math.round(this.basePx * SIGN_SCALE), fit)));
+    const { width, height } = this.sign;
+    const r = this.edge === 'bottom' ? crew : turnRect(this.edge, this.box, crew);
+    const gap = SIGN_GAP * this.basePx;
+    const cx = r.x + r.width / 2 - width / 2;
+    const cy = r.y + r.height / 2 - height / 2;
+    const want =
+      this.edge === 'top'
+        ? { x: cx, y: r.y + r.height + gap }
+        : this.edge === 'left'
+          ? { x: r.x + r.width + gap, y: cy }
+          : this.edge === 'right'
+            ? { x: r.x - gap - width, y: cy }
+            : { x: cx, y: r.y - gap - height };
+    const at = confine(want.x, want.y, width, height, area);
+    this.sign.draw(Math.round(at.x), Math.round(at.y), pointer);
   }
 
   // A clock's tooltip over the clock, a crew's over the whole crew, as it stands on screen.
